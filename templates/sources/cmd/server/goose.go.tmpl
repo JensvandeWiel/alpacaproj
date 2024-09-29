@@ -1,0 +1,60 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"github.com/pressly/goose/v3"
+	"log/slog"
+	"os"
+	"{{.packageName}}/migrations"
+
+	"github.com/spf13/cobra"
+)
+
+// gooseCmd represents the goose command
+var gooseCmd = &cobra.Command{
+	Use:   "goose",
+	Short: "A brief description of your command",
+	Long: `A longer description that spans multiple lines and likely contains examples
+and usage of using your command. For example:
+
+Cobra is a CLI library for Go that empowers applications.
+This application is a tool to generate the needed files
+to quickly create a Cobra application.`,
+	RunE: runGoose,
+}
+
+func runGoose(cmd *cobra.Command, args []string) error {
+	conn, err := ConnectDB()
+	if err != nil {
+		return fmt.Errorf("failed to connect to the database: %w", err)
+	}
+	if conn == nil {
+		return fmt.Errorf("database connection is nil")
+	}
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	goose.SetBaseFS(migrations.Migrations)
+	err = goose.SetDialect("{{.dialect}}")
+	if err != nil {
+		logger.Error("Failed to set goose dialect", err)
+		return err
+	}
+
+	dir := "."
+	if len(args) > 0 && args[0] == "create" {
+		dir = "migrations"
+	}
+	if len(args) == 0 {
+		// Default to status if no arguments are provided
+		args = append(args, "status")
+	}
+
+	err = goose.RunContext(context.Background(), args[0], conn.DB, dir, args[1:]...)
+	if err != nil {
+		logger.Error("Failed to run goose", err)
+		return err
+	}
+	return nil
+}

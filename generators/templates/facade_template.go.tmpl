@@ -1,0 +1,35 @@
+package facades
+
+// Using a facade provider improves the ease of testing by allowing the facade to be mocked, since facades can have multiple instances per request. Service are created at application startup.
+
+type {{.camelName}}Provider interface {
+	CreateFacade() ({{.camelName}}, error)
+}
+
+type {{.camelName}}ProviderDefault struct {
+}
+
+func New{{.camelName}}ProviderDefault() *{{.camelName}}ProviderDefault {
+	return &{{.camelName}}ProviderDefault{}
+}
+
+func (g *{{.camelName}}ProviderDefault) CreateFacade() ({{.camelName}}, error) {
+	return New{{.camelName}}Default(), nil
+}
+
+
+type {{.camelName}} interface {
+	Placeholder()
+}
+
+type {{.camelName}}Default struct {
+	
+}
+
+func New{{.camelName}}Default() {{.camelName}} {
+	return &{{.camelName}}Default{}
+}
+
+func (g *{{.camelName}}Default) Placeholder() {
+	// Placeholder
+}

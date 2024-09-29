@@ -1,0 +1,22 @@
+package main
+
+import (
+	"fmt"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"log/slog"
+	"{{.packageName}}/app"
+	"{{.packageName}}/handlers"
+)
+
+var serveCmd = &cobra.Command{
+	Use:   "serve",
+	Short: "Serves the server",
+	Run: func(cmd *cobra.Command, args []string) {
+		app, err := CreateApp(handlers.Handlers, app.Modifiers...)
+		cobra.CheckErr(err)
+		app.Logger.Info("Starting server", slog.String("host", fmt.Sprintf("%s:%d", viper.GetString("HOST"), viper.GetInt("PORT"))))
+		err = app.Echo.Start(fmt.Sprintf("%s:%d", viper.GetString("HOST"), viper.GetInt("PORT")))
+		cobra.CheckErr(err)
+	},
+}

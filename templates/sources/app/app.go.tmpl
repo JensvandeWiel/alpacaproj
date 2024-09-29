@@ -1,0 +1,38 @@
+package app
+
+import (
+	"github.com/gorilla/sessions"
+	"github.com/jmoiron/sqlx"
+	"github.com/labstack/echo/v4"
+	{{if .isInertia}}"github.com/romsar/gonertia"{{end}}
+	"github.com/spf13/viper"
+	echoSwagger "github.com/swaggo/echo-swagger"
+	"github.com/valkey-io/valkey-go"
+	"log/slog"
+)
+
+type Modifier func(a *App) error
+
+// Modifiers is a list of modifiers that will be applied to the app separately form the modifiers that are passed to CreateApp
+var Modifiers = make([]Modifier, 0)
+
+func RegisterSwagger(app *App) error {
+	if viper.GetString("ENV") == "dev" {
+		app.Logger.Debug("Enabling swagger endpoint")
+		app.Echo.GET("/swagger/*", echoSwagger.WrapHandler)
+	}
+	return nil
+}
+
+func init() {
+	Modifiers = append(Modifiers, RegisterSwagger{{if .hasFrontend}}, RegisterFrontend {{end}})
+}
+
+type App struct {
+	Echo   *echo.Echo
+	Logger *slog.Logger
+	{{if .isInertia}}Inertia *gonertia.Inertia{{end}}
+	SessionStore sessions.Store
+	DB           *sqlx.DB
+	Valkey       valkey.Client
+}

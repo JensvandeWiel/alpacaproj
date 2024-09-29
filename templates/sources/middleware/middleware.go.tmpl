@@ -1,0 +1,66 @@
+package middleware
+
+import (
+	"context"
+	"github.com/google/uuid"
+	"github.com/labstack/echo-contrib/session"
+	"github.com/labstack/echo/v4"
+	"log/slog"
+)
+
+const DefaultSessionName = "session"
+const DefaultSessionKey = "session_id"
+
+// EnsureSession ensures every request has a session
+func EnsureSession() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			sess, err := session.Get(DefaultSessionName, c)
+			if err != nil {
+				return err
+			}
+
+			// Save session to ensure it's created
+			if err := sess.Save(c.Request(), c.Response()); err != nil {
+				return err
+			}
+
+			// Proceed to the next handler
+			return next(c)
+		}
+	}
+}
+
+// AttachRequestID attaches a request ID to the context, it also adds a request specific logger.
+func AttachRequestID(logger *slog.Logger) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			id, err := uuid.NewRandom()
+			if err != nil {
+				slog.Error("Failed to generate request ID", slog.String("error", err.Error()))
+				return err
+			}
+
+			c.Set("request_id", id.String())
+			c.Set("logger", logger.With("request_id", id.String(), "module", "request"))
+			c.Response().Header().Set(echo.HeaderXRequestID, id.String())
+
+			return next(c)
+		}
+	}
+}
+
+// AttachSessionIDToRequestContext attaches the session ID to the request context
+func AttachSessionIDToRequestContext() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			ss, err := session.Get(DefaultSessionName, c)
+			if err != nil {
+				return err
+			}
+
+			c.SetRequest(c.Request().WithContext(context.WithValue(c.Request().Context(), DefaultSessionKey, ss.ID)))
+			return next(c)
+		}
+	}
+}

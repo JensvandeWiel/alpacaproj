@@ -1,0 +1,30 @@
+package handlers
+
+import (
+	"github.com/labstack/echo/v4"
+	"{{.packageName}}/app"
+	"{{.packageName}}/middleware"
+)
+
+func init() {
+	Handlers = append(Handlers, &APIHandler{})
+}
+
+type APIHandler struct {
+	*app.App
+}
+
+func (h *APIHandler) Register(app *app.App) error {
+	h.App = app
+	g := h.Echo.Group("/api")
+	g.GET("", h.IndexHandle)
+	return nil
+}
+
+func (h *APIHandler) GetHandlerName() string {
+	return "API_MainHandler"
+}
+func (h *APIHandler) IndexHandle(ctx echo.Context) error {
+	middleware.GetLogger(ctx).Info("API Index")
+	return ctx.String(200, "Hello World")
+}

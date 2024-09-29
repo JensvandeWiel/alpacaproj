@@ -1,0 +1,21 @@
+package daos
+
+import "github.com/jmoiron/sqlx"
+
+type {{.camelName}} interface {
+	Placeholder()
+}
+
+type Database{{.camelName}} struct {
+	db *sqlx.DB
+}
+
+func NewDatabase{{.camelName}}(db *sqlx.DB) {{.camelName}} {
+	return &Database{{.camelName}}{
+		db: db,
+	}
+}
+
+func (d *Database{{.camelName}}) Placeholder() {
+	// Placeholder
+}

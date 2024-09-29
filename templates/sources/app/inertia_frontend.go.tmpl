@@ -1,0 +1,162 @@
+package app
+
+import (
+	"crypto/sha256"
+	_ "embed"
+	"encoding/json"
+	"fmt"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"github.com/romsar/gonertia"
+	"github.com/spf13/viper"
+	"html/template"
+	"log/slog"
+	"net/url"
+	"os/exec"
+	"path"
+	"strings"
+	"{{.packageName}}/flash"
+	"{{.packageName}}/frontend"
+	"{{.packageName}}/helpers"
+)
+
+type inertiaLogger struct {
+	logger *slog.Logger
+}
+
+func (l *inertiaLogger) Printf(format string, v ...interface{}) {
+	l.logger.Info(fmt.Sprintf(format, v))
+}
+
+func (l *inertiaLogger) Println(v ...interface{}) {
+	l.logger.Info(fmt.Sprint(v))
+}
+
+func createHash() string {
+	hash := sha256.New()
+	hash.Write(frontend.RootTemplate)
+	return fmt.Sprintf("%x", hash.Sum(nil))
+}
+
+func RegisterFrontend(a *App) error {
+	var err error
+	a.Inertia, err = gonertia.NewFromBytes(
+		frontend.RootTemplate,
+		gonertia.WithVersion(createHash()),
+		gonertia.WithLogger(&inertiaLogger{a.Logger.With(slog.String("module", "inertia"))}),
+		gonertia.WithFlashProvider(flash.NewFlashProvider(a.Valkey)),
+	)
+
+	if err != nil {
+		a.Logger.Error("Failed to initialize Inertia", slog.Any("err", err))
+		return err
+	}
+
+	a.Inertia.ShareTemplateFunc("vite", vite("build", a.Logger))
+	a.Inertia.ShareTemplateFunc("viteHead", viteHead())
+	a.Inertia.ShareTemplateFunc("reactRefresh", reactRefresh())
+
+	a.Echo.Use(echo.WrapMiddleware(a.Inertia.Middleware))
+	if !helpers.IsRelease && viper.GetString("ENV") == "dev" {
+		a.Logger.Info("Setting up bun dev proxy")
+		err := setupDevProxy(a.Echo, a.Logger)
+		if err != nil {
+			a.Logger.Error("Failed to setup dev proxy", err)
+			return err
+		}
+		return nil
+	}
+
+	a.Echo.StaticFS("/build", frontend.DistDirFS)
+	return nil
+}
+
+func setupDevProxy(e *echo.Echo, logger *slog.Logger) error {
+	cmd := exec.Command("bun", "run", "dev")
+	cmd.Dir = "./frontend"
+	err := cmd.Start()
+	if err != nil {
+		logger.Error("Failed to start the dev server", err)
+	}
+
+	url, err := url.Parse("http://localhost:5173/")
+	if err != nil {
+		logger.Error("Failed to parse the URL for the dev server", err, url)
+		return err
+	}
+	// Setup a proxy to the vite dev server on localhost:5173
+	balancer := middleware.NewRoundRobinBalancer([]*middleware.ProxyTarget{
+		{
+			URL: url,
+		},
+	})
+
+	px := middleware.ProxyWithConfig(middleware.ProxyConfig{
+		Balancer: balancer,
+		Skipper: func(c echo.Context) bool {
+			// Skip the proxy if the path is in the ignore list
+			for _, ignorePath := range frontend.IgnoreList {
+				if strings.Contains(c.Path(), ignorePath) {
+					return true
+				}
+			}
+
+			return false
+		},
+	})
+
+	e.Group("/src").Use(px)
+	e.Group("/@*").Use(px)
+	e.Group("/node_modules").Use(px)
+
+	return nil
+}
+
+func vite(buildDir string, logger *slog.Logger) func(path string) (string, error) {
+	viteAssets := make(map[string]*struct {
+		File   string `json:"file"`
+		Source string `json:"src"`
+	})
+	err := json.Unmarshal(frontend.Manifest, &viteAssets)
+	if err != nil {
+		logger.Error("Failed to unmarshal vite manifest file to json", err)
+	}
+
+	return func(p string) (string, error) {
+		// If in dev mode and the asset is in the viteAssets map, return the vite asset path
+		if viper.GetString("ENV") == "dev" {
+			if _, ok := viteAssets[p]; ok {
+				return path.Join("/", p), nil
+			}
+		}
+		// If in prod mode and the asset is in the viteAssets map, return the dist asset path
+		if val, ok := viteAssets[p]; ok {
+			return path.Join("/", buildDir, val.File), nil
+		}
+		return "", fmt.Errorf("asset %q not found", p)
+	}
+}
+
+func reactRefresh() func() template.HTML {
+	return func() template.HTML {
+		if viper.GetString("ENV") == "dev" {
+			return "<script type=\"module\">import RefreshRuntime from '/@react-refresh';" +
+				"RefreshRuntime.injectIntoGlobalHook(window);" +
+				"window.$RefreshReg$ = () => { };" +
+				"window.$RefreshSig$ = () => (type) => type;" +
+				"window.__vite_plugin_react_preamble_installed__ = true;</script>"
+		} else {
+			return ""
+		}
+	}
+}
+
+func viteHead() func() template.HTML {
+	return func() template.HTML {
+		if viper.GetString("ENV") == "dev" {
+			return "<script type=\"module\" src=\"/@vite/client\"></script>"
+		} else {
+			return ""
+		}
+	}
+}

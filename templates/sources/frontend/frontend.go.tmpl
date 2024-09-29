@@ -1,0 +1,22 @@
+package frontend
+
+import (
+	"embed"
+	"github.com/labstack/echo/v4"
+)
+
+var (
+	//go:embed root.gohtml
+	RootTemplate []byte
+
+	//go:embed public/build/.vite/manifest.json
+	Manifest []byte
+
+	//go:embed public/build/*
+	dist embed.FS
+
+	// Endpoints to ignore the proxy for
+	IgnoreList = []string{"api", "swagger"}
+
+	DistDirFS = echo.MustSubFS(dist, "public/build")
+)

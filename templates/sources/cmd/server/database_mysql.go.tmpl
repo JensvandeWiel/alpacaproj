@@ -1,0 +1,31 @@
+package main
+
+import (
+	"fmt"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/jmoiron/sqlx"
+	"github.com/spf13/viper"
+	"github.com/valkey-io/valkey-go"
+)
+
+func ConnectDB() (*sqlx.DB, error) {
+
+	dsn := fmt.Sprintf("%v:%v@tcp(%v:%v)/%v?parseTime=true",
+		viper.GetString("DB_USER"),
+		viper.GetString("DB_PASS"),
+		viper.GetString("DB_HOST"),
+		viper.GetInt("DB_PORT"),
+		viper.GetString("DB_NAME"))
+
+	conn, err := sqlx.Connect("mysql", dsn)
+	if err != nil {
+		return nil, err
+	}
+	return conn, nil
+}
+
+func ConnectCache() (valkey.Client, error) {
+	return valkey.NewClient(valkey.ClientOption{
+		InitAddress: []string{fmt.Sprintf("%v:%v", viper.GetString("CACHE_HOST"), viper.GetInt("CACHE_PORT"))},
+	})
+}

@@ -1,0 +1,17 @@
+package middleware
+
+import (
+	"context"
+	"github.com/labstack/echo/v4"
+	"log/slog"
+)
+
+// GetSessionIDFromRequest returns the session ID from the request context
+func GetSessionIDFromRequest(ctx context.Context) string {
+	return ctx.Value(DefaultSessionKey).(string)
+}
+
+// GetLogger returns the logger from the context
+func GetLogger(c echo.Context) *slog.Logger {
+	return c.Get("logger").(*slog.Logger)
+}

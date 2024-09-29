@@ -1,0 +1,17 @@
+package services
+
+type {{.camelName}}Service interface {
+	Placeholder()
+}
+
+type {{.camelName}}DefaultService struct {
+
+}
+
+func (s *{{.camelName}}DefaultService) Placeholder() {
+	// Placeholder
+}
+
+func New{{.camelName}}DefaultService() {{.camelName}}Service {
+	return &{{.camelName}}DefaultService{}
+}

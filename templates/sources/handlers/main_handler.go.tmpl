@@ -1,0 +1,27 @@
+package handlers
+
+import (
+	"github.com/labstack/echo/v4"
+	"{{.packageName}}/app"
+)
+
+func init() {
+	Handlers = append(Handlers, &MainHandler{})
+}
+
+type MainHandler struct {
+	*app.App
+}
+
+func (h *MainHandler) Register(app *app.App) error {
+	h.App = app
+	h.Echo.GET("/", h.IndexInertiaHandle)
+	return nil
+}
+
+func (h *MainHandler) GetHandlerName() string {
+	return "MainHandler"
+}
+func (h *MainHandler) IndexInertiaHandle(ctx echo.Context) error {
+	return h.Inertia.Render(ctx.Response(), ctx.Request(), "Index", nil)
+}

@@ -1,0 +1,89 @@
+package flash
+
+import (
+	"bytes"
+	"context"
+	"encoding/gob"
+	"github.com/labstack/echo/v4"
+	"github.com/romsar/gonertia"
+	"github.com/valkey-io/valkey-go"
+	"log/slog"
+	"{{.packageName}}/middleware"
+	"time"
+)
+
+const FlashErrKeyPrefix = "flash_err:"
+
+type FlashProvider struct {
+	client valkey.Client
+	logger *slog.Logger
+}
+
+// NewFlashProvider creates a new flash provider, it expects that the context contains a sessionID
+func NewFlashProvider(client valkey.Client) *FlashProvider {
+	return &FlashProvider{client: client}
+}
+
+// FlashErrors adds the errors to the flash provider
+func (f *FlashProvider) FlashErrors(ctx context.Context, errors gonertia.ValidationErrors) error {
+	sessionID := middleware.GetSessionIDFromRequest(ctx)
+	var buffer bytes.Buffer
+	enc := gob.NewEncoder(&buffer)
+	err := enc.Encode(errors)
+	if err != nil {
+		return err
+	}
+
+	err = f.client.Do(context.Background(), f.client.B().Set().Key(FlashErrKeyPrefix+sessionID).Value(buffer.String()).Ex(time.Hour*24).Build()).Error()
+	if err != nil {
+		return err
+	}
+	f.logger.Debug("Flash errors", "sessionID", sessionID, "errors", errors)
+	for key, value := range errors {
+		f.logger.Debug("Flash error", "key", key, "value", value)
+	}
+	return nil
+}
+
+// GetErrors returns the errors from the flash provider
+func (f *FlashProvider) GetErrors(ctx context.Context) (gonertia.ValidationErrors, error) {
+	sessionID := middleware.GetSessionIDFromRequest(ctx)
+	var errs gonertia.ValidationErrors
+	res := f.client.Do(context.Background(), f.client.B().Get().Key(FlashErrKeyPrefix+sessionID).Build())
+	if res.Error() != nil {
+		if valkey.IsValkeyNil(res.Error()) {
+			// No errors found
+			return gonertia.ValidationErrors{}, nil
+		}
+		return gonertia.ValidationErrors{}, res.Error()
+	}
+
+	b, err := res.AsBytes()
+	if err != nil {
+		return gonertia.ValidationErrors{}, err
+	}
+
+	err = gob.NewDecoder(bytes.NewReader(b)).Decode(&errs)
+	if err != nil {
+		return gonertia.ValidationErrors{}, err
+	}
+	f.logger.Debug("Get errors", "sessionID", sessionID)
+	for key, value := range errs {
+		f.logger.Debug("Got error", "key", key, "value", value)
+	}
+
+	return errs, nil
+}
+
+func AttachFlashProvider(fp gonertia.FlashProvider) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.Set("flash", fp)
+			return next(c)
+		}
+	}
+}
+
+func GetFlashProvider(c echo.Context) gonertia.FlashProvider {
+	return c.Get("flash").(gonertia.FlashProvider)
+}

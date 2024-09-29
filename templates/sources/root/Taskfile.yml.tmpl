@@ -1,0 +1,44 @@
+version: "3"
+tasks:
+  installdeps:
+    desc: Install required tools
+    cmds:
+      - go install github.com/swaggo/swag/cmd/swag@latest
+      - go install github.com/air-verse/air@latest
+      - go install github.com/pressly/goose/v3/cmd/goose@latest
+      - go install github.com/spf13/cobra-cli@latest
+      - go mod tidy
+      {{ if .isInertia }}- cd frontend && bun install{{ end }}
+  create:migration_*:
+    vars:
+      name: '{{ "{{index .MATCH 0}}" }}'
+    desc: Create a goose migration
+    cmds:
+      - go run ./cmd/server/ goose create {{.name}} sql
+  migrate:up:
+    desc: Run goose
+    cmds:
+      - go run ./cmd/server/ goose up
+  migrate:down:
+    desc: Run goose
+    cmds:
+      - go run ./cmd/server/ goose down
+  {{ if .isInertia }}build:frontend:
+    cmds:
+      - cd frontend && bun run build{{ end }}
+  generate_swagger:
+    desc: Generate swagger documentation
+    cmds:
+      - rm -rf docs
+      - swag init -d cmd/server/
+      - swag fmt
+  dev:
+    cmds:
+      {{ if .isInertia }}- task: build:frontend{{ end }}
+      - docker compose -f docker-compose.yml up -d
+      - air -c .air.toml
+  build:
+    cmds:
+      {{ if .isInertia }}- task: build:frontend{{ end }}
+      - task: generate_swagger
+      - go build -tags release -o bin/server ./cmd/server/

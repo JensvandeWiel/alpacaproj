@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {{ viteHead }}
+    {{ reactRefresh }}
+    <script type="module" src="{{ vite "src/main.tsx" }}"></script>
+    <!-- Put here your styles, meta and other stuff -->
+    {{ .inertiaHead }}
+</head>
+<body>
+{{ .inertia }}
+</body>
+</html>

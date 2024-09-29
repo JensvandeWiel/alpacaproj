@@ -1,0 +1,261 @@
+package main
+
+import (
+	"errors"
+	"fmt"
+	"github.com/JensvandeWiel/valkeystore"
+	"github.com/joho/godotenv"
+	"github.com/labstack/echo-contrib/session"
+	"github.com/labstack/echo/v4"
+	middleware2 "github.com/labstack/echo/v4/middleware"
+	slogecho "github.com/samber/slog-echo"
+	"log/slog"
+	"os"
+	"strings"
+	"{{.packageName}}/app"
+	"{{.packageName}}/handlers"
+	"{{.packageName}}/middleware"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+
+	_ "{{.packageName}}/docs"
+
+	{{if .hasFrontend}}_ "{{.packageName}}/frontend"{{end}}
+)
+
+var (
+	cfgFile    string
+	logLevel   string
+	host       string
+	port       int
+	dbHost     string
+	dbPort     int
+	dbUser     string
+	dbPass     string
+	dbName     string
+	ignoreList = []string{"api", "swagger", "deployments/webhook"}
+)
+
+// rootCmd represents the base command when called without any subcommands
+var rootCmd = &cobra.Command{
+	Use:   "{{.projectName}}",
+	Short: "Fullstack golang template with js framework of choice",
+}
+
+// Execute adds all child commands to the root command and sets flags appropriately.
+// This is called by main.main(). It only needs to happen once to the rootCmd.
+func Execute() {
+	err := rootCmd.Execute()
+	if err != nil {
+		os.Exit(1)
+	}
+}
+
+func init() {
+	cobra.OnInitialize(initConfig)
+
+	// Load in .env files first
+	if _, err := os.Stat(".env"); errors.Is(err, os.ErrNotExist) {
+		// Do nothing
+	} else if err != nil {
+		cobra.CheckErr(err)
+	} else {
+		err := godotenv.Load()
+		if err != nil {
+			cobra.CheckErr(err)
+		}
+	}
+
+	// Define flags and configuration settings.
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.{{.projectName}}.yaml)")
+	rootCmd.PersistentFlags().StringVarP(&logLevel, "logLevel", "l", "INFO", "the log level to use (DEBUG, INFO, WARN, ERROR)")
+	rootCmd.PersistentFlags().StringVar(&host, "host", "0.0.0.0", "the host to bind to")
+	rootCmd.PersistentFlags().IntVarP(&port, "port", "p", 8080, "the port to bind to")
+	rootCmd.PersistentFlags().StringVar(&dbHost, "DBHost", "localhost", "the database host")
+	rootCmd.PersistentFlags().IntVar(&dbPort, "DBPort", {{if eq .database "mysql"}}3306{{else if eq .database "postgres"}}5432{{end}}, "the database port")
+    rootCmd.PersistentFlags().StringVar(&dbUser, "DBUser", "{{if eq .database "mysql"}}root{{else if eq .database "postgres"}}user{{end}}", "the database user")
+	rootCmd.PersistentFlags().StringVar(&dbPass, "DBPass", "password", "the database password")
+	rootCmd.PersistentFlags().StringVar(&dbName, "DBName", "{{.projectName}}", "the database name")
+	rootCmd.PersistentFlags().String("ENV", "dev", "the environment to run in")
+	rootCmd.PersistentFlags().String("CACHE_HOST", "localhost", "the cache host")
+	rootCmd.PersistentFlags().Int("CACHE_PORT", 6379, "the cache port")
+
+	// Bind flags to Viper
+	viper.BindPFlag("LOG_LEVEL", rootCmd.PersistentFlags().Lookup("logLevel"))
+	viper.BindPFlag("HOST", rootCmd.PersistentFlags().Lookup("host"))
+	viper.BindPFlag("PORT", rootCmd.PersistentFlags().Lookup("port"))
+	viper.BindPFlag("DB_HOST", rootCmd.PersistentFlags().Lookup("DBHost"))
+	viper.BindPFlag("DB_PORT", rootCmd.PersistentFlags().Lookup("DBPort"))
+	viper.BindPFlag("DB_USER", rootCmd.PersistentFlags().Lookup("DBUser"))
+	viper.BindPFlag("DB_PASS", rootCmd.PersistentFlags().Lookup("DBPass"))
+	viper.BindPFlag("DB_NAME", rootCmd.PersistentFlags().Lookup("DBName"))
+	viper.BindPFlag("ENV", rootCmd.PersistentFlags().Lookup("ENV"))
+	viper.BindPFlag("CACHE_HOST", rootCmd.PersistentFlags().Lookup("CACHE_HOST"))
+	viper.BindPFlag("CACHE_PORT", rootCmd.PersistentFlags().Lookup("CACHE_PORT"))
+
+	rootCmd.AddCommand(serveCmd)
+	rootCmd.AddCommand(gooseCmd)
+
+}
+
+func initConfig() {
+	if cfgFile != "" {
+		// Use config file from the flag.
+		viper.SetConfigFile(cfgFile)
+	} else {
+		// Find home directory.
+		home, err := os.UserHomeDir()
+		cobra.CheckErr(err)
+
+		// Search config in home directory with name ".{{.projectName}}" (without extension).
+		viper.AddConfigPath(home)
+		viper.SetConfigType("yaml")
+		viper.SetConfigName(".{{.projectName}}")
+	}
+
+	// Read in environment variables that match
+	viper.AutomaticEnv()
+
+	// If a config file is found, read it in.
+	if err := viper.ReadInConfig(); err == nil {
+		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+	}
+}
+
+func parseLogLevel() slog.Level {
+	if viper.GetString("ENV") == "dev" {
+		return slog.LevelDebug
+	}
+
+	switch logLevel {
+	case "DEBUG":
+		return slog.LevelDebug
+	case "INFO":
+		return slog.LevelInfo
+	case "WARN":
+		return slog.LevelWarn
+	case "ERROR":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
+}
+
+func CreateApp(handlers []handlers.Handler, modifiers ...app.Modifier) (*app.App, error) {
+	a := &app.App{}
+
+	// Create the logger
+	ll := parseLogLevel()
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: ll,
+	}))
+	a.Logger = logger
+
+	// Connect to the database
+	logger.Info("Connecting to the database", slog.String("host", dbHost), slog.Int("port", dbPort), slog.String("user", dbUser), slog.String("name", dbName))
+	db, err := ConnectDB()
+	if err != nil {
+		logger.Error("Failed to connect to the database", slog.Any("err", err))
+		return nil, err
+	}
+	a.DB = db
+
+	// Connect to the cache
+	logger.Info("Connecting to valkey", slog.String("host", viper.GetString("CACHE_HOST")), slog.Int("port", viper.GetInt("CACHE_PORT")))
+	vkClient, err := ConnectCache()
+	if err != nil {
+		logger.Error("Failed to connect to valkey", slog.Any("err", err))
+		return nil, err
+	}
+	a.Valkey = vkClient
+
+	// Create the session store
+	store, err := valkeystore.NewValkeyStore(vkClient)
+	if err != nil {
+		logger.Error("Failed to create valkey store", slog.Any("err", err))
+		return nil, err
+	}
+	a.SessionStore = store
+
+	// Create the echo instance
+	e := echo.New()
+	e.Pre(middleware2.RemoveTrailingSlash())
+	e.HidePort = true
+	e.HideBanner = true
+	e.Use(
+		slogecho.New(logger.With(slog.String("module", "echo"))),
+		middleware.AttachRequestID(logger),
+		session.Middleware(store),
+		middleware.EnsureSession(),
+		middleware.AttachSessionIDToRequestContext(),
+	)
+
+	// Add CSRF protection
+	e.Use(middleware2.CSRFWithConfig(middleware2.CSRFConfig{
+		TokenLookup: "header:X-CSRF-TOKEN",
+		Skipper: func(c echo.Context) bool {
+			// Skip the CSRF if the path is in the ignore list
+			for _, ignorePath := range ignoreList {
+				if strings.Contains(c.Request().RequestURI, ignorePath) {
+					return true
+				}
+			}
+			return false
+		},
+	}))
+
+	App := &app.App{
+		Echo:         e,
+		Logger:       logger,
+		DB:           db,
+		Valkey:       vkClient,
+		SessionStore: store,
+	}
+
+	// Apply the global modifiers
+	for _, modifier := range app.Modifiers {
+		err := modifier(App)
+		if err != nil {
+			logger.Error("Failed to apply global modifier", slog.Any("err", err))
+			return nil, err
+		}
+	}
+
+	// Apply the modifiers that are passed to CreateApp
+	for _, modifier := range modifiers {
+		err := modifier(App)
+		if err != nil {
+			logger.Error("Failed to apply modifier", slog.Any("err", err))
+			return nil, err
+		}
+	}
+
+	for _, handler := range handlers {
+		logger.Info("Registering handler", slog.String("handler", handler.GetHandlerName()))
+		err := handler.Register(App)
+		if err != nil {
+			logger.Error("Failed to register handler", slog.String("handler", handler.GetHandlerName()), slog.Any("err", err))
+			return nil, err
+		}
+	}
+
+	return App, nil
+}
+
+//	@title			{{.projectName}}
+//	@version		1.0
+//	@description	Fullstack golang template w ith js framework of choice
+
+//	@contact.name	Jens van de Wiel
+//	@contact.url	https://jens.vandewiel.eu
+//	@contact.email	jens.vdwiel@gmail.com
+
+//	@securityDefinitions.apikey	ApiKeyAuth
+//	@in							header
+//	@name						Authorization
+
+// @license.name	MIT
+func main() {
+	Execute()
+}

@@ -1,0 +1,10 @@
+package handlers
+
+import "{{.packageName}}/app"
+
+var Handlers = make([]Handler, 0)
+
+type Handler interface {
+	Register(app *app.App) error
+	GetHandlerName() string
+}
