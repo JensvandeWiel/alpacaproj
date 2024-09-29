@@ -26,7 +26,7 @@ var newCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(newCmd)
 
-	newCmd.Flags().StringVarP(&database, "database", "d", "mysql", "Database to use")
+	newCmd.Flags().StringVarP(&database, "database", "d", "mysql", "Database to use possible values: mysql, postgres")
 	newCmd.Flags().StringVarP(&frontend, "frontend", "f", "none", "frontend type to use, type 'none' to skip frontend, possible values: none, inertia+react, inertia+vue, inertia+svelte")
 	newCmd.Flags().StringVarP(&packageName, "package", "p", "", "package name")
 }
