@@ -19,3 +19,11 @@ alpacaproj completion powershell | Out-String | Invoke-Expression
 ```
 ### Arm
 You can change the `x86_64` to `arm64` in the download url
+
+## Used programs
+Make sure to have these programs installed
+- [Bun](https://bun.sh/)
+- [Task](https://taskfile.dev/)
+## Todo
+- [ ] Add existing project check
+- [ ] Add the installation of the used programs
