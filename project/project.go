@@ -16,8 +16,10 @@ type Project struct {
 	Database     DatabaseDriver `yaml:"database"`
 	HasFrontend  bool           `yaml:"has_frontend"`
 	FrontendType FrontendType   `yaml:"frontend_type"`
+	Extras       []ExtraOption  `yaml:"extras"`
 }
 
+type ExtraOption string
 type DatabaseDriver string
 type FrontendType string
 
@@ -37,6 +39,8 @@ const (
 	InertiaReact  FrontendType = "inertia+react"
 	InertiaVue    FrontendType = "inertia+vue"
 	InertiaSvelte FrontendType = "inertia+svelte"
+
+	Svelte5 ExtraOption = "svelte5"
 )
 
 var (
@@ -83,7 +87,30 @@ func parseFrontend(frontend string) (FrontendType, error) {
 	}
 }
 
-func NewProject(projName string, database string, frontend string, packageName string, logger *slog.Logger) (*Project, error) {
+var ErrInvalidExtra = errors.New("invalid extra option")
+
+func parseExtra(extra string) (ExtraOption, error) {
+	switch extra {
+	case "svelte5":
+		return Svelte5, nil
+	default:
+		return "", ErrInvalidExtra
+	}
+}
+
+func parseExtras(extras []string) ([]ExtraOption, error) {
+	var opts []ExtraOption
+	for _, extra := range extras {
+		opt, err := parseExtra(extra)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, opt)
+	}
+	return opts, nil
+}
+
+func NewProject(projName string, database string, frontend string, packageName string, extras []string, logger *slog.Logger) (*Project, error) {
 	name, absPath, err := ParseProjectName(projName)
 	if err != nil {
 		return nil, err
@@ -95,6 +122,11 @@ func NewProject(projName string, database string, frontend string, packageName s
 	}
 
 	frontendType, err := parseFrontend(frontend)
+	if err != nil {
+		return nil, err
+	}
+
+	extraOpts, err := parseExtras(extras)
 	if err != nil {
 		return nil, err
 	}
@@ -113,6 +145,7 @@ func NewProject(projName string, database string, frontend string, packageName s
 		Database:     dbDriver,
 		HasFrontend:  frontendType.HasFrontend(),
 		FrontendType: frontendType,
+		Extras:       extraOpts,
 	}, nil
 }
 

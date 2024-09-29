@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/JensvandeWiel/alpacaproj/extras"
 	"github.com/JensvandeWiel/alpacaproj/helpers"
 	"github.com/JensvandeWiel/alpacaproj/project"
 	"github.com/JensvandeWiel/alpacaproj/templates"
@@ -13,6 +14,7 @@ var (
 	database    string
 	frontend    string
 	packageName string
+	extrasVal   []string
 )
 
 // newCmd represents the new command
@@ -20,7 +22,7 @@ var newCmd = &cobra.Command{
 	Use:   "new [project name]",
 	Short: "Creates a new project",
 	Args:  cobra.ExactArgs(1),
-	Run:   runNewCmd,
+	RunE:  runNewCmd,
 }
 
 func init() {
@@ -29,9 +31,10 @@ func init() {
 	newCmd.Flags().StringVarP(&database, "database", "d", "mysql", "Database to use possible values: mysql, postgres")
 	newCmd.Flags().StringVarP(&frontend, "frontend", "f", "none", "frontend type to use, type 'none' to skip frontend, possible values: none, inertia+react, inertia+vue, inertia+svelte")
 	newCmd.Flags().StringVarP(&packageName, "package", "p", "", "package name")
+	newCmd.Flags().StringSliceVarP(&extrasVal, "extrasVal", "e", []string{}, "extra features to add to the project possible values: svelte5")
 }
 
-func runNewCmd(cmd *cobra.Command, args []string) {
+func runNewCmd(cmd *cobra.Command, args []string) error {
 	lvl := slog.LevelInfo
 	if verbose {
 		lvl = slog.LevelDebug
@@ -43,17 +46,19 @@ func runNewCmd(cmd *cobra.Command, args []string) {
 
 	l.Info("Creating new project")
 
-	proj, err := project.NewProject(args[0], database, frontend, packageName, l)
+	proj, err := project.NewProject(args[0], database, frontend, packageName, extrasVal, l)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	//TODO check if project already exists
 
 	err = generateProject(proj)
 	if err != nil {
-		panic(err)
+		return err
 	}
+
+	return nil
 }
 
 func generateProject(prj *project.Project) error {
@@ -129,6 +134,11 @@ func generateProject(prj *project.Project) error {
 	}
 
 	err = templates.BuildRootFiles(prj)
+	if err != nil {
+		return err
+	}
+
+	err = extras.ApplyExtras(prj)
 	if err != nil {
 		return err
 	}
