@@ -51,7 +51,7 @@ func SetupDatabase() (*sqlx.DB, func(), error) {
 		return nil, cleanup, err
 	}
 
-	err = goose.Up(db.DB, "migrations")
+	err = goose.Up(db.DB, ".")
 	if err != nil {
 		return nil, cleanup, err
 	}
