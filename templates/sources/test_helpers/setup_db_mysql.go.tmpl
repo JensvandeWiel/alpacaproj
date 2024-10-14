@@ -1,0 +1,59 @@
+package test_helpers
+
+import (
+	"context"
+	"fmt"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/jmoiron/sqlx"
+	"github.com/pressly/goose/v3"
+	"github.com/testcontainers/testcontainers-go/modules/mysql"
+	"{{.packageName}}/migrations"
+)
+
+func SetupDatabase() (*sqlx.DB, func(), error) {
+	ctx := context.Background()
+	mySQLUser := "user"
+	mySQLPassword := "password"
+	mySQLDatabase := "test"
+	mySQLContainer, err := mysql.Run(ctx,
+		"mysql:9",
+		mysql.WithDatabase(mySQLDatabase),
+		mysql.WithUsername(mySQLUser),
+		mysql.WithPassword(mySQLPassword),
+	)
+
+	cleanup := func() {
+		err := mySQLContainer.Terminate(ctx)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	if err != nil {
+		return nil, cleanup, err
+	}
+
+	mySQLHost, err := mySQLContainer.Host(ctx)
+	if err != nil {
+		return nil, cleanup, err
+	}
+	mySQLPort, err := mySQLContainer.MappedPort(ctx, "3306")
+	if err != nil {
+		return nil, cleanup, err
+	}
+
+	dsn := fmt.Sprintf("%v:%v@tcp(%v:%v)/%v?parseTime=true", mySQLUser, mySQLPassword, mySQLHost, mySQLPort.Port(), mySQLDatabase)
+	db, err := sqlx.Connect("mysql", dsn)
+
+	goose.SetBaseFS(migrations.Migrations)
+	err = goose.SetDialect("mysql")
+	if err != nil {
+		return nil, cleanup, err
+	}
+
+	err = goose.Up(db.DB, "migrations")
+	if err != nil {
+		return nil, cleanup, err
+	}
+	return db, cleanup, nil
+}

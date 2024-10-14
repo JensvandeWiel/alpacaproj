@@ -1,0 +1,59 @@
+package test_helpers
+
+import (
+	"context"
+	"fmt"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
+	"github.com/pressly/goose/v3"
+	"github.com/testcontainers/testcontainers-go/modules/postgres"
+	"{{.packageName}}/migrations"
+)
+
+func SetupDatabase() (*sqlx.DB, func(), error) {
+	ctx := context.Background()
+	pgUser := "user"
+	pgPassword := "password"
+	pgDatabase := "test"
+	pgContainer, err := postgres.Run(ctx,
+		"postgres:latest",
+		postgres.WithDatabase(pgDatabase),
+		postgres.WithUsername(pgUser),
+		postgres.WithPassword(pgPassword),
+	)
+
+	cleanup := func() {
+		err := pgContainer.Terminate(ctx)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	if err != nil {
+		return nil, cleanup, err
+	}
+
+	pgHost, err := pgContainer.Host(ctx)
+	if err != nil {
+		return nil, cleanup, err
+	}
+	pgPort, err := pgContainer.MappedPort(ctx, "5432")
+	if err != nil {
+		return nil, cleanup, err
+	}
+
+	dsn := fmt.Sprintf("host=%v port=%v user=%v password=%v dbname=%v sslmode=disable", pgHost, pgPort.Int(), pgUser, pgPassword, pgDatabase)
+	db, err := sqlx.Connect("postgres", dsn)
+
+	goose.SetBaseFS(migrations.Migrations)
+	err = goose.SetDialect("postgres")
+	if err != nil {
+		return nil, cleanup, err
+	}
+
+	err = goose.Up(db.DB, "migrations")
+	if err != nil {
+		return nil, cleanup, err
+	}
+	return db, cleanup, nil
+}

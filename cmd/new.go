@@ -138,6 +138,11 @@ func generateProject(prj *project.Project) error {
 		return err
 	}
 
+	err = templates.BuildTestHelpers(prj)
+	if err != nil {
+		return err
+	}
+
 	err = extras.ApplyExtras(prj)
 	if err != nil {
 		return err
