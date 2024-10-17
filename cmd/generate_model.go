@@ -14,8 +14,13 @@ var generateModelCmd = &cobra.Command{
 	RunE:    runGenerateModelCmd,
 }
 
+var (
+	addExtras bool
+)
+
 func init() {
 	generateCmd.AddCommand(generateModelCmd)
+	generateModelCmd.Flags().BoolVarP(&addExtras, "extras", "e", false, "Add extras to the model: store and tests")
 }
 
 func runGenerateModelCmd(cmd *cobra.Command, args []string) error {
@@ -24,7 +29,7 @@ func runGenerateModelCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	g := generators.NewModelGenerator(args[0], prj)
+	g := generators.NewModelGenerator(args[0], prj, addExtras)
 	err = g.Generate()
 	if err != nil {
 		return err

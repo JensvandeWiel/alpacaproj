@@ -1,0 +1,49 @@
+package stores
+
+import (
+	"{{.packageName}}/models"
+	"{{.packageName}}/test_helpers"
+	"errors"
+	"testing"
+)
+
+func TestDatabase{{.camelNameNoSuffix}}Store_Get{{.camelNameNoSuffix}}ById(t *testing.T) {
+
+	db, cleanup, err := test_helpers.SetupDatabase()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+
+	t.Run("{{.camelNameNoSuffix}} not found", func(t *testing.T) {
+		store := NewDatabase{{.camelNameNoSuffix}}Store(db)
+		{{.lowName}}, err := store.Get{{.camelNameNoSuffix}}ById(1)
+		if {{.lowName}} != nil {
+			t.Errorf("Expected nil, got %v", {{.lowName}})
+		}
+		if !errors.Is(err, Error{{.camelNameNoSuffix}}NotFound) {
+			t.Errorf("Expected %v, got %v", Error{{.camelNameNoSuffix}}NotFound, err)
+		}
+	})
+
+	t.Run("{{.camelNameNoSuffix}} found", func(t *testing.T) {
+		store := NewDatabase{{.camelNameNoSuffix}}Store(db)
+		{{.lowName}} := &models.{{.camelNameNoSuffix}}{
+			ID: 1,
+		}
+		_, err := db.NamedExec("INSERT INTO {{.pluralLowName}} (id) VALUES (:id)", {{.lowName}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		{{.lowName}}, err = store.Get{{.camelNameNoSuffix}}ById(1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if {{.lowName}} == nil {
+			t.Errorf("Expected {{.lowName}}, got nil")
+		}
+		if {{.lowName}}.ID != 1 {
+			t.Errorf("Expected 1, got %v", {{.lowName}}.ID)
+		}
+	})
+}

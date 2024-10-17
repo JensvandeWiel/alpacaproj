@@ -1,0 +1,38 @@
+package stores
+
+import (
+	"{{.packageName}}/models"
+	"database/sql"
+	"errors"
+	"github.com/jmoiron/sqlx"
+)
+
+var (
+	Error{{.camelNameNoSuffix}}NotFound = errors.New("{{.lowName}} not found")
+)
+
+type {{.camelNameNoSuffix}}Store interface {
+	Get{{.camelNameNoSuffix}}ById(id int) (*models.{{.camelNameNoSuffix}}, error)
+}
+
+type Database{{.camelNameNoSuffix}}Store struct {
+	db *sqlx.DB
+}
+
+func NewDatabase{{.camelNameNoSuffix}}Store(db *sqlx.DB) {{.camelNameNoSuffix}}Store {
+	return &Database{{.camelNameNoSuffix}}Store{
+		db: db,
+	}
+}
+
+func (s *Database{{.camelNameNoSuffix}}Store) Get{{.camelNameNoSuffix}}ById(id int) (*models.{{.camelNameNoSuffix}}, error) {
+	{{.lowName}} := &models.{{.camelNameNoSuffix}}{}
+	err := s.db.Get({{.lowName}}, "SELECT * FROM {{.pluralLowName}} WHERE id = ?", id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, Error{{.camelNameNoSuffix}}NotFound
+		}
+		return nil, err
+	}
+	return {{.lowName}}, nil
+}

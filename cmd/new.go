@@ -103,7 +103,6 @@ func generateProject(prj *project.Project) error {
 	}
 
 	err = templates.BuildFlash(prj)
-
 	if err != nil {
 		return err
 	}

@@ -1,12 +1,12 @@
 package models
 
-type {{.camelName}} struct {
-	//ID   int    `json:"id"`
+type {{.camelNameNoSuffix}} struct {
+	ID int `json:"id" db:"id"`
 }
 
-// Safe{{.camelName}} returns a map with sensitive information removed.
-func (m *{{.camelName}}) Safe{{.camelName}}() map[string]interface{} {
+// Safe{{.camelNameNoSuffix}} returns a map with sensitive information removed.
+func (m *{{.camelNameNoSuffix}}) Safe{{.camelNameNoSuffix}}() map[string]interface{} {
 	return map[string]interface{}{
-		// "id":      int(m.ID),
+		"id": int(m.ID),
 	}
 }
