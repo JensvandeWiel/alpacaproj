@@ -20,7 +20,7 @@ var (
 
 func init() {
 	generateCmd.AddCommand(generateModelCmd)
-	generateModelCmd.Flags().BoolVarP(&addExtras, "extras", "e", false, "Add extras to the model: store and tests")
+	generateModelCmd.Flags().BoolVarP(&addExtras, "extras", "e", false, "Add extras to the model: store, tests and migration")
 }
 
 func runGenerateModelCmd(cmd *cobra.Command, args []string) error {

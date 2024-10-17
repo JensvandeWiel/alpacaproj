@@ -3,6 +3,7 @@ package generators
 import (
 	_ "embed"
 	"errors"
+	"fmt"
 	"github.com/JensvandeWiel/alpacaproj/helpers"
 	"github.com/JensvandeWiel/alpacaproj/project"
 	"github.com/gertd/go-pluralize"
@@ -10,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"text/template"
+	"time"
 )
 
 type ModelGenerator struct {
@@ -197,6 +199,20 @@ func (g *ModelGenerator) generateExtras() error {
 		return errors.New("database not supported")
 	}
 
+	err := g.generateStoreTests()
+	if err != nil {
+		return err
+	}
+
+	err = g.generateMigration()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (g *ModelGenerator) generateStoreTests() error {
 	tmpl, err := template.New("store_test").Parse(storeTestTemplate)
 	if err != nil {
 		return err
@@ -234,5 +250,50 @@ func (g *ModelGenerator) generateExtras() error {
 		return err
 	}
 
+	return nil
+}
+
+var timestampFormat = "20060102150405"
+
+//go:embed templates/extra_model/migration.sql.tmpl
+var migrationTemplate string
+
+func (g *ModelGenerator) generateMigration() error {
+	g.prj.Logger.Debug("Generating migration")
+	version := time.Now().UTC().Format(timestampFormat)
+
+	tmpl, err := template.New("migration").Parse(migrationTemplate)
+	if err != nil {
+		return err
+	}
+
+	err = helpers.CreateDirectories(g.prj.Path, []string{"migrations"}, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	fileName := g.prj.Path + "/migrations/" + fmt.Sprintf("%s_create_%s_table.sql", version, pluralize.NewClient().Plural(g.name))
+
+	if _, err := os.Stat(fileName); !os.IsNotExist(err) {
+		return ErrModelExists
+	}
+
+	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	data := map[string]interface{}{
+		"pluralName": pluralize.NewClient().Plural(g.name),
+	}
+
+	err = tmpl.Execute(file, data)
+	if err != nil {
+		return err
+	}
+
+	g.prj.Logger.Debug("Generated migration")
 	return nil
 }
