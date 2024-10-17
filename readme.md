@@ -17,6 +17,10 @@ $downloadUrl = (Invoke-RestMethod https://api.github.com/repos/JensvandeWiel/alp
 ```powershell
 alpacaproj completion powershell | Out-String | Invoke-Expression
 ```
+### Go Install
+```bash
+go install github.com/JensvandeWiel/alpacaproj
+```
 ### Arm
 You can change the `x86_64` to `arm64` in the download url
 
