@@ -1,0 +1,11 @@
+version: "2"
+sql:
+  - engine: "{{.databaseDriver}}"
+    queries: "queries/"
+    schema: "migrations/"
+    gen:
+      go:
+        package: "repository"
+        out: "repository"
+        emit_result_struct_pointers: true
+        emit_interface: true

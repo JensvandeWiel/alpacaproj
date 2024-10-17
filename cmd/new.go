@@ -31,7 +31,7 @@ func init() {
 	newCmd.Flags().StringVarP(&database, "database", "d", "mysql", "Database to use possible values: mysql, postgres")
 	newCmd.Flags().StringVarP(&frontend, "frontend", "f", "none", "frontend type to use, type 'none' to skip frontend, possible values: none, inertia+react, inertia+vue, inertia+svelte")
 	newCmd.Flags().StringVarP(&packageName, "package", "p", "", "package name")
-	newCmd.Flags().StringSliceVarP(&extrasVal, "extrasVal", "e", []string{}, "extra features to add to the project possible values: svelte5")
+	newCmd.Flags().StringSliceVarP(&extrasVal, "extras", "e", []string{}, "extra features to add to the project possible values: svelte5, sqlc")
 }
 
 func runNewCmd(cmd *cobra.Command, args []string) error {
@@ -82,9 +82,12 @@ func generateProject(prj *project.Project) error {
 		return err
 	}
 
-	err = helpers.CreateDirectories(prj.Path, []string{"models"}, 0755)
-	if err != nil {
-		return err
+	// Only ignore models directory if SQLC is enabled, stores can still be used for abstraction
+	if !prj.Extras.HasExtra(project.SQLC) {
+		err = helpers.CreateDirectories(prj.Path, []string{"models"}, 0755)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = helpers.CreateDirectories(prj.Path, []string{"facades"}, 0755)

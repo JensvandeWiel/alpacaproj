@@ -9,6 +9,7 @@ import (
 	"github.com/gertd/go-pluralize"
 	"github.com/iancoleman/strcase"
 	"os"
+	"os/exec"
 	"strings"
 	"text/template"
 	"time"
@@ -47,6 +48,34 @@ var ErrModelExists = errors.New("model already exists")
 
 func (g *ModelGenerator) Generate() error {
 	g.prj.Logger.Info("Generating model: " + g.camelName)
+
+	if g.prj.Extras.HasExtra(project.SQLC) {
+		err := g.generateSQLC()
+		if err != nil {
+			return err
+		}
+	} else {
+		err := g.generateNormal()
+		if err != nil {
+			return err
+		}
+	}
+
+	if g.addExtras {
+		g.prj.Logger.Debug("Generating extras")
+		err := g.generateExtras()
+		if err != nil {
+			return err
+		}
+		g.prj.Logger.Info("Generated extras")
+	}
+
+	g.prj.Logger.Info("Generated model: " + g.camelName)
+
+	return nil
+}
+
+func (g *ModelGenerator) generateNormal() error {
 	fileName := g.prj.Path + "/models/" + g.name + ".go"
 
 	tmpl, err := template.New("model").Parse(modelTemplate)
@@ -79,16 +108,14 @@ func (g *ModelGenerator) Generate() error {
 		return err
 	}
 
-	if g.addExtras {
-		g.prj.Logger.Debug("Generating extras")
-		err = g.generateExtras()
-		if err != nil {
-			return err
-		}
-		g.prj.Logger.Info("Generated extras")
-	}
+	return nil
+}
 
-	g.prj.Logger.Info("Generated model: " + g.camelName)
+func (g *ModelGenerator) generateSQLC() error {
+	err := g.generateSQLCQueryFile()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -180,23 +207,73 @@ func (g *ModelGenerator) generatePostgresStore() error {
 	return nil
 }
 
+//go:embed templates/extra_model/store_sqlc.go.tmpl
+var storeSQLCTemplate string
+
+func (g *ModelGenerator) generateSQLCStore() error {
+	tmpl, err := template.New("store_sqlc").Parse(storeSQLCTemplate)
+	if err != nil {
+		return err
+	}
+
+	err = helpers.CreateDirectories(g.prj.Path, []string{"stores"}, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	fileName := g.prj.Path + "/stores/" + g.name + "_store.go"
+
+	if _, err := os.Stat(fileName); !os.IsNotExist(err) {
+		return ErrStoreExists
+	}
+
+	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	data := map[string]interface{}{
+		"camelNameNoSuffix": g.camelNameNoSuffix,
+		"lowName":           g.name,
+		"packageName":       g.prj.PackageName,
+	}
+
+	err = tmpl.Execute(file, data)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 //go:embed templates/extra_model/store_test.go.tmpl
 var storeTestTemplate string
 
+//go:embed templates/extra_model/store_test_sqlc.go.tmpl
+var storeTestSQLCTemplate string
+
 func (g *ModelGenerator) generateExtras() error {
-	switch g.prj.Database {
-	case "mysql":
-		err := g.generateMysqlStore()
+	if !g.prj.Extras.HasExtra(project.SQLC) {
+		switch g.prj.Database {
+		case "mysql":
+			err := g.generateMysqlStore()
+			if err != nil {
+				return err
+			}
+		case "postgres":
+			err := g.generatePostgresStore()
+			if err != nil {
+				return err
+			}
+		default:
+			return errors.New("database not supported")
+		}
+	} else {
+		err := g.generateSQLCStore()
 		if err != nil {
 			return err
 		}
-	case "postgres":
-		err := g.generatePostgresStore()
-		if err != nil {
-			return err
-		}
-	default:
-		return errors.New("database not supported")
 	}
 
 	err := g.generateStoreTests()
@@ -209,11 +286,26 @@ func (g *ModelGenerator) generateExtras() error {
 		return err
 	}
 
+	if g.prj.Extras.HasExtra(project.SQLC) {
+		err := g.runSQLC()
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
 func (g *ModelGenerator) generateStoreTests() error {
-	tmpl, err := template.New("store_test").Parse(storeTestTemplate)
+
+	var usetemplate string
+	if g.prj.Extras.HasExtra(project.SQLC) {
+		usetemplate = storeTestSQLCTemplate
+	} else {
+		usetemplate = storeTestTemplate
+	}
+
+	tmpl, err := template.New("store_test").Parse(usetemplate)
 	if err != nil {
 		return err
 	}
@@ -255,14 +347,25 @@ func (g *ModelGenerator) generateStoreTests() error {
 
 var timestampFormat = "20060102150405"
 
-//go:embed templates/extra_model/migration.sql.tmpl
-var migrationTemplate string
-
 func (g *ModelGenerator) generateMigration() error {
 	g.prj.Logger.Debug("Generating migration")
+	switch g.prj.Database {
+	case "mysql":
+		return g.generateMigrationMySQL()
+	case "postgres":
+		return g.generateMigrationPostgres()
+	}
+	g.prj.Logger.Debug("Generated migration")
+	return nil
+}
+
+//go:embed templates/extra_model/migration_mysql.sql.tmpl
+var mysqlMigrationTemplate string
+
+func (g *ModelGenerator) generateMigrationMySQL() error {
 	version := time.Now().UTC().Format(timestampFormat)
 
-	tmpl, err := template.New("migration").Parse(migrationTemplate)
+	tmpl, err := template.New("migration").Parse(mysqlMigrationTemplate)
 	if err != nil {
 		return err
 	}
@@ -294,6 +397,154 @@ func (g *ModelGenerator) generateMigration() error {
 		return err
 	}
 
-	g.prj.Logger.Debug("Generated migration")
+	return nil
+}
+
+//go:embed templates/extra_model/migration_postgres.sql.tmpl
+var postgresMigrationTemplate string
+
+func (g *ModelGenerator) generateMigrationPostgres() error {
+	version := time.Now().UTC().Format(timestampFormat)
+
+	tmpl, err := template.New("migration").Parse(postgresMigrationTemplate)
+	if err != nil {
+		return err
+	}
+
+	err = helpers.CreateDirectories(g.prj.Path, []string{"migrations"}, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	fileName := g.prj.Path + "/migrations/" + fmt.Sprintf("%s_create_%s_table.sql", version, pluralize.NewClient().Plural(g.name))
+
+	if _, err := os.Stat(fileName); !os.IsNotExist(err) {
+		return ErrModelExists
+	}
+
+	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	data := map[string]interface{}{
+		"pluralName": pluralize.NewClient().Plural(g.name),
+	}
+
+	err = tmpl.Execute(file, data)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (g *ModelGenerator) generateSQLCQueryFile() error {
+	g.prj.Logger.Debug("Generating SQLC query file")
+	switch g.prj.Database {
+	case "mysql":
+		return g.generateSQLCMySQLQueryFile()
+	case "postgres":
+		return g.generateSQLCPostgresQueryFile()
+	}
+	g.prj.Logger.Debug("Generated SQLC query file")
+	return nil
+}
+
+//go:embed templates/query_mysql_template.sql.tmpl
+var sqlcQueryTemplate string
+
+func (g *ModelGenerator) generateSQLCMySQLQueryFile() error {
+	templ, err := template.New("sqlc_query_mysql").Parse(sqlcQueryTemplate)
+	if err != nil {
+		return err
+	}
+
+	err = helpers.CreateDirectories(g.prj.Path, []string{"queries"}, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	fileName := g.prj.Path + "/queries/" + g.name + ".sql"
+
+	if _, err := os.Stat(fileName); !os.IsNotExist(err) {
+		return ErrModelExists
+	}
+
+	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	data := map[string]interface{}{
+		"camelNameNoSuffix":       g.camelNameNoSuffix,
+		"pluralLowName":           pluralize.NewClient().Plural(g.name),
+		"camelNameNoSuffixPlural": strcase.ToCamel(pluralize.NewClient().Plural(g.name)),
+	}
+
+	err = templ.Execute(file, data)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+//go:embed templates/query_postgres_template.sql.tmpl
+var sqlcQueryPostgresTemplate string
+
+func (g *ModelGenerator) generateSQLCPostgresQueryFile() error {
+	templ, err := template.New("sqlc_query_postgres").Parse(sqlcQueryPostgresTemplate)
+	if err != nil {
+		return err
+	}
+
+	err = helpers.CreateDirectories(g.prj.Path, []string{"queries"}, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	fileName := g.prj.Path + "/queries/" + g.name + ".sql"
+
+	if _, err := os.Stat(fileName); !os.IsNotExist(err) {
+		return ErrModelExists
+	}
+
+	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	data := map[string]interface{}{
+		"camelNameNoSuffix":       g.camelNameNoSuffix,
+		"pluralLowName":           pluralize.NewClient().Plural(g.name),
+		"camelNameNoSuffixPlural": strcase.ToCamel(pluralize.NewClient().Plural(g.name)),
+	}
+
+	err = templ.Execute(file, data)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (g *ModelGenerator) runSQLC() error {
+	g.prj.Logger.Debug("Running SQLC code Generator")
+	com := exec.Command("sqlc", "generate")
+	com.Dir = g.prj.Path
+	com.Stdout = os.Stdout
+	com.Stderr = os.Stderr
+	err := com.Run()
+	if err != nil {
+		return err
+	}
+	g.prj.Logger.Debug("Ran SQLC code Generator")
 	return nil
 }

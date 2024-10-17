@@ -1,8 +1,8 @@
 -- +goose Up
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS {{.pluralName}} (
-  `id` INT NOT NULL AUTO_INCREMENT,
-  PRIMARY KEY (`id`)
+  id SERIAL NOT NULL,
+  PRIMARY KEY (id)
 );
 -- +goose StatementEnd
 

@@ -8,6 +8,17 @@ import (
 	"path/filepath"
 )
 
+type ExtraOptions []ExtraOption
+
+func (e ExtraOptions) HasExtra(extra ExtraOption) bool {
+	for _, opt := range e {
+		if opt == extra {
+			return true
+		}
+	}
+	return false
+}
+
 type Project struct {
 	Logger       *slog.Logger   `yaml:"-"`
 	Name         string         `yaml:"name"`
@@ -16,7 +27,7 @@ type Project struct {
 	Database     DatabaseDriver `yaml:"database"`
 	HasFrontend  bool           `yaml:"has_frontend"`
 	FrontendType FrontendType   `yaml:"frontend_type"`
-	Extras       []ExtraOption  `yaml:"extras"`
+	Extras       ExtraOptions   `yaml:"extras"`
 }
 
 type ExtraOption string
@@ -41,6 +52,7 @@ const (
 	InertiaSvelte FrontendType = "inertia+svelte"
 
 	Svelte5 ExtraOption = "svelte5"
+	SQLC    ExtraOption = "sqlc"
 )
 
 var (
@@ -93,6 +105,8 @@ func parseExtra(extra string) (ExtraOption, error) {
 	switch extra {
 	case "svelte5":
 		return Svelte5, nil
+	case "sqlc":
+		return SQLC, nil
 	default:
 		return "", ErrInvalidExtra
 	}
