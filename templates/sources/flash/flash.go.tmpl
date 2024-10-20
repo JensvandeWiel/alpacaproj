@@ -13,6 +13,7 @@ import (
 )
 
 const FlashErrKeyPrefix = "flash_err:"
+const FlashClearHistoryKeyPrefix = "flash_clear_history:"
 
 type FlashProvider struct {
 	client valkey.Client
@@ -73,6 +74,40 @@ func (f *FlashProvider) GetErrors(ctx context.Context) (gonertia.ValidationError
 	}
 
 	return errs, nil
+}
+
+
+func (f *FlashProvider) FlashClearHistory(ctx context.Context) error {
+	sessionID := middleware.GetSessionIDFromRequest(ctx)
+
+	err := f.client.Do(context.Background(), f.client.B().Set().Key(FlashClearHistoryKeyPrefix+sessionID).Value("true").Build()).Error()
+	if err != nil {
+		return err
+	}
+	f.logger.Debug("Flash clear history set", "sessionID", sessionID)
+	return nil
+}
+
+func (f *FlashProvider) ShouldClearHistory(ctx context.Context) (bool, error) {
+	sessionID := middleware.GetSessionIDFromRequest(ctx)
+
+	res := f.client.Do(context.Background(), f.client.B().Get().Key(FlashClearHistoryKeyPrefix+sessionID).Build())
+	if res.Error() != nil {
+		if valkey.IsValkeyNil(res.Error()) {
+			// No value found, return false
+			return false, nil
+		}
+		return false, res.Error()
+	}
+
+	strValue := res.String()
+
+	val, err := strconv.ParseBool(strValue)
+	if err != nil {
+		return false, err
+	}
+	f.logger.Debug("Should clear history", "sessionID", sessionID, "value", val)
+	return val, nil
 }
 
 func AttachFlashProvider(fp gonertia.FlashProvider) echo.MiddlewareFunc {
