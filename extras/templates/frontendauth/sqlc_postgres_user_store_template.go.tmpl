@@ -1,0 +1,93 @@
+package stores
+
+import (
+	"{{.packageName}}/repository"
+	"context"
+	"database/sql"
+	"errors"
+	"github.com/jmoiron/sqlx"
+)
+
+var (
+	ErrorUserNotFound = errors.New("user not found")
+	ErrorInvalidUser  = errors.New("invalid user")
+)
+
+type UserStore interface {
+	GetUserById(id int32) (*repository.User, error)
+	GetUserByEmail(email string) (*repository.User, error)
+	CreateUser(user *repository.User) (int64, error)
+	DeleteUser(id int32) error
+}
+
+type DatabaseUserStore struct {
+	queries *repository.Queries
+}
+
+func NewDatabaseUserStore(db *sqlx.DB) UserStore {
+	return &DatabaseUserStore{
+		queries: repository.New(db),
+	}
+}
+
+func (d *DatabaseUserStore) GetUserById(id int32) (*repository.User, error) {
+	user, err := d.queries.GetUser(context.Background(), id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrorUserNotFound
+		}
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (d *DatabaseUserStore) GetUserByEmail(email string) (*repository.User, error) {
+	user, err := d.queries.GetUserByEmail(context.Background(), email)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrorUserNotFound
+		}
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (d *DatabaseUserStore) CreateUser(user *repository.User) (int64, error) {
+	if user == nil {
+		return 0, ErrorInvalidUser
+	}
+	if user.Email == "" || user.Name == "" || user.Password == "" {
+		return 0, ErrorInvalidUser
+	}
+	id, err := d.queries.CreateUser(context.Background(), repository.CreateUserParams{
+		Email:    user.Email,
+		Name:     user.Name,
+		Password: user.Password,
+	})
+
+	if err != nil {
+		return 0, err
+	}
+
+	return int64(id), nil
+}
+
+func (d *DatabaseUserStore) DeleteUser(id int32) error {
+	res, err := d.queries.DeleteUser(context.Background(), id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrorUserNotFound
+	}
+
+	return nil
+}

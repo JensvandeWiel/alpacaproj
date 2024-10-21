@@ -1,0 +1,53 @@
+package test_helpers
+
+import (
+	"{{.packageName}}/middleware"
+	"context"
+	"github.com/google/uuid"
+	"github.com/gorilla/sessions"
+	"github.com/labstack/echo/v4"
+	"log/slog"
+	"net/http/httptest"
+	"os"
+	"testing"
+)
+
+type AlterTestEchoFunc func(e *echo.Echo)
+
+func SetupEchoContext(t *testing.T, method string, logger *slog.Logger, alterFuncs ...AlterTestEchoFunc) (echo.Context, *echo.Echo, *httptest.ResponseRecorder) {
+	e := echo.New()
+	for _, f := range alterFuncs {
+		f(e)
+	}
+	req := httptest.NewRequest(method, "/", nil)
+	rec := httptest.NewRecorder()
+	ctx := e.NewContext(req, rec)
+	id, err := uuid.NewRandom()
+	if err != nil {
+		t.Fatal("Failed to generate request ID", err.Error())
+	}
+
+	ctx.Set("request_id", id.String())
+	ctx.Set("logger", logger.With("request_id", id.String()))
+	ctx.Response().Header().Set(echo.HeaderXRequestID, id.String())
+	return ctx, e, rec
+}
+
+func SetupLogger() *slog.Logger {
+	return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	}))
+}
+
+func SetupSession(ctx echo.Context) *sessions.Session {
+	store := sessions.NewCookieStore([]byte("secret"))
+	ctx.Set("_session_store", store)
+	session, _ := store.Get(ctx.Request(), "session")
+	SetSession(ctx, session)
+	return session
+}
+
+func SetSession(ctx echo.Context, session *sessions.Session) {
+	ctx.Set(middleware.DefaultSessionKey, session.ID)
+	ctx.SetRequest(ctx.Request().WithContext(context.WithValue(ctx.Request().Context(), middleware.DefaultSessionKey, session.ID)))
+}

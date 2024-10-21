@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"log/slog"
 	"os"
+	"os/exec"
 )
 
 var (
@@ -151,6 +152,35 @@ func generateProject(prj *project.Project) error {
 	}
 
 	err = prj.SaveConfig()
+	if err != nil {
+		return err
+	}
+
+	//TODO add git init
+	prj.Logger.Info("Initializing git repository")
+	command := exec.Command("git", "init", prj.Path)
+	command.Stdout = os.Stdout
+	command.Stderr = os.Stderr
+	err = command.Run()
+	if err != nil {
+		return err
+	}
+
+	//Inital commit
+	command = exec.Command("git", "add", ".")
+	command.Dir = prj.Path
+	command.Stdout = os.Stdout
+	command.Stderr = os.Stderr
+	err = command.Run()
+	if err != nil {
+		return err
+	}
+
+	command = exec.Command("git", "commit", "-m", "\"Initial commit\"")
+	command.Dir = prj.Path
+	command.Stdout = os.Stdout
+	command.Stderr = os.Stderr
+	err = command.Run()
 	if err != nil {
 		return err
 	}

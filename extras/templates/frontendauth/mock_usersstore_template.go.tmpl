@@ -1,0 +1,34 @@
+package test_helpers
+
+import (
+	"{{.packageName}}/{{.modelModule}}"
+	"github.com/stretchr/testify/mock"
+)
+
+type MockUsersStore struct {
+	mock.Mock
+}
+
+func (m *MockUsersStore) GetUserById(id int32) (*{{.modelModule}}.User, error) {
+	args := m.Called(id)
+	return args.Get(0).(*{{.modelModule}}.User), args.Error(1)
+}
+
+func (m *MockUsersStore) GetUserByEmail(email string) (*{{.modelModule}}.User, error) {
+	args := m.Called(email)
+	return args.Get(0).(*{{.modelModule}}.User), args.Error(1)
+}
+
+func (m *MockUsersStore) CreateUser(user *{{.modelModule}}.User) (int64, error) {
+	args := m.Called(user)
+	return args.Get(0).(int64), args.Error(1)
+}
+
+func (m *MockUsersStore) DeleteUser(id int32) error {
+	args := m.Called(id)
+	return args.Error(0)
+}
+
+func NewMockUsersStore() *MockUsersStore {
+	return &MockUsersStore{}
+}

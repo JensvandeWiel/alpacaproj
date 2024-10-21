@@ -36,6 +36,11 @@ func BuildTestHelpers(prj *project.Project) error {
 		}
 	}
 
+	err = buildEchoContext(prj)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -84,5 +89,32 @@ func buildTestHelpers_Postgres(prj *project.Project) error {
 		return err
 	}
 	prj.Logger.Debug("Generated test_helpers/setup_db.go")
+	return nil
+}
+
+//go:embed sources/test_helpers/echo_context_template.go.tmpl
+var echo_context_template string
+
+func buildEchoContext(prj *project.Project) error {
+	prj.Logger.Debug("Generating test_helpers/echo_context.go")
+
+	tmpl, err := template.New("echo_context").Parse(echo_context_template)
+
+	file, err := os.OpenFile(path.Join(prj.Path, "test_helpers", "echo_context.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	data := map[string]interface{}{
+		"packageName": prj.PackageName,
+	}
+
+	err = tmpl.Execute(file, data)
+	if err != nil {
+		return err
+	}
+	prj.Logger.Debug("Generated test_helpers/echo_context.go")
 	return nil
 }

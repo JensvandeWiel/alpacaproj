@@ -345,8 +345,6 @@ func (g *ModelGenerator) generateStoreTests() error {
 	return nil
 }
 
-var timestampFormat = "20060102150405"
-
 func (g *ModelGenerator) generateMigration() error {
 	g.prj.Logger.Debug("Generating migration")
 	switch g.prj.Database {
@@ -363,7 +361,7 @@ func (g *ModelGenerator) generateMigration() error {
 var mysqlMigrationTemplate string
 
 func (g *ModelGenerator) generateMigrationMySQL() error {
-	version := time.Now().UTC().Format(timestampFormat)
+	version := time.Now().UTC().Format(project.TimestampFormat)
 
 	tmpl, err := template.New("migration").Parse(mysqlMigrationTemplate)
 	if err != nil {
@@ -404,7 +402,7 @@ func (g *ModelGenerator) generateMigrationMySQL() error {
 var postgresMigrationTemplate string
 
 func (g *ModelGenerator) generateMigrationPostgres() error {
-	version := time.Now().UTC().Format(timestampFormat)
+	version := time.Now().UTC().Format(project.TimestampFormat)
 
 	tmpl, err := template.New("migration").Parse(postgresMigrationTemplate)
 	if err != nil {

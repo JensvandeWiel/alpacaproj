@@ -1,0 +1,18 @@
+-- +goose Up
+-- +goose StatementBegin
+CREATE TABLE users
+(
+    id         INT AUTO_INCREMENT PRIMARY KEY,
+    email      VARCHAR(255) NOT NULL UNIQUE CHECK ( length(email) > 0 ),
+    name       VARCHAR(255) NOT NULL CHECK ( length(name) > 0 ),
+    password   VARCHAR(255) NOT NULL CHECK ( length(password) >= 8 ),
+    created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE (email)
+);
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+DROP TABLE IF EXISTS users;
+-- +goose StatementEnd
