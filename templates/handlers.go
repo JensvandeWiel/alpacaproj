@@ -4,74 +4,50 @@ import (
 	_ "embed"
 	"github.com/JensvandeWiel/alpacaproj/helpers"
 	"github.com/JensvandeWiel/alpacaproj/project"
-	"os"
-	"path"
-	"text/template"
 )
 
 //go:embed sources/handlers/handler.go.tmpl
-var handler_template []byte
+var handlerTemplate string
 
+// buildHandlers_Handler generates the handlers/handler.go file
 func buildHandlers_Handler(prj *project.Project) error {
 	prj.Logger.Debug("Generating handlers/handler.go")
 
-	tmpl, err := template.New("handler").Parse(string(handler_template))
-	if err != nil {
-		return err
-	}
-
-	err = helpers.CreateDirectories(prj.Path, []string{"handlers"}, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	file, err := os.OpenFile(path.Join(prj.Path, "handlers/handler.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
 	data := map[string]interface{}{
 		"packageName": prj.PackageName,
 	}
 
-	return tmpl.Execute(file, data)
+	err := helpers.WriteTemplateToFile(prj, "handlers/handler.go", handlerTemplate, data)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 //go:embed sources/handlers/api_handler.go.tmpl
-var api_handler_template []byte
+var apiHandlerTemplate string
 
+// buildHandlers_APIHandler generates the handlers/api_handler.go file
 func buildHandlers_APIHandler(prj *project.Project) error {
 	prj.Logger.Debug("Generating handlers/api_handler.go")
-
-	tmpl, err := template.New("api_handler").Parse(string(api_handler_template))
-	if err != nil {
-		return err
-	}
-
-	err = helpers.CreateDirectories(prj.Path, []string{"handlers"}, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	file, err := os.OpenFile(path.Join(prj.Path, "handlers/api_handler.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
 
 	data := map[string]interface{}{
 		"packageName": prj.PackageName,
 	}
 
-	return tmpl.Execute(file, data)
+	err := helpers.WriteTemplateToFile(prj, "handlers/api_handler.go", apiHandlerTemplate, data)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 //go:embed sources/handlers/main_handler.go.tmpl
-var main_handler_template []byte
+var mainHandlerTemplate string
 
+// buildHandlers_MainHandler generates the handlers/main_handler.go file
 func buildHandlers_MainHandler(prj *project.Project) error {
 	prj.Logger.Debug("Generating handlers/main_handler.go")
 
@@ -80,28 +56,16 @@ func buildHandlers_MainHandler(prj *project.Project) error {
 		return nil
 	}
 
-	tmpl, err := template.New("main_handler").Parse(string(main_handler_template))
-	if err != nil {
-		return err
-	}
-
-	err = helpers.CreateDirectories(prj.Path, []string{"handlers"}, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	file, err := os.OpenFile(path.Join(prj.Path, "handlers/main_handler.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
 	data := map[string]interface{}{
 		"packageName": prj.PackageName,
 	}
 
-	return tmpl.Execute(file, data)
+	err := helpers.WriteTemplateToFile(prj, "handlers/main_handler.go", mainHandlerTemplate, data)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func BuildHandlers(prj *project.Project) error {
@@ -119,5 +83,6 @@ func BuildHandlers(prj *project.Project) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }

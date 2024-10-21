@@ -2,11 +2,9 @@ package extras
 
 import (
 	_ "embed"
+	"github.com/JensvandeWiel/alpacaproj/helpers"
 	"github.com/JensvandeWiel/alpacaproj/project"
-	"os"
-	"os/exec"
 	"path"
-	"text/template"
 )
 
 func BuildFrontendAuth(prj *project.Project) error {
@@ -41,28 +39,20 @@ func BuildFrontendAuth(prj *project.Project) error {
 		return err
 	}
 
-	//Add extra test helpers
+	// Add extra test helpers
 	err = buildMockUsersStore(prj)
 	if err != nil {
 		return err
 	}
 
 	if prj.Extras.HasExtra(project.SQLC) {
-		command := exec.Command("sqlc", "generate")
-		command.Dir = prj.Path
-		command.Stdout = os.Stdout
-		command.Stderr = os.Stderr
-		err = command.Run()
+		err = helpers.GenerateSQLCDefinitions(prj)
 		if err != nil {
 			return err
 		}
 	}
 
-	command := exec.Command("go", "mod", "tidy")
-	command.Dir = prj.Path
-	command.Stdout = os.Stdout
-	command.Stderr = os.Stderr
-	err = command.Run()
+	err = helpers.RunGoTidy(prj)
 	if err != nil {
 		return err
 	}
@@ -79,18 +69,6 @@ var frontendAuthServiceTestTemplate string
 func buildFrontendAuthService(prj *project.Project) error {
 	prj.Logger.Debug("Building extra FrontendAuthService")
 
-	tmpl, err := template.New("frontendAuthService").Parse(frontendAuthServiceTemplate)
-	if err != nil {
-		return err
-	}
-
-	file, err := os.OpenFile(path.Join(prj.Path, "services", "frontend_auth_service.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
 	modelModule := "models"
 	if prj.Extras.HasExtra(project.SQLC) {
 		modelModule = "repository"
@@ -101,24 +79,12 @@ func buildFrontendAuthService(prj *project.Project) error {
 		"modelModule": modelModule,
 	}
 
-	err = tmpl.Execute(file, data)
+	err := helpers.WriteTemplateToFile(prj, path.Join("services", "frontend_auth_service.go"), frontendAuthServiceTemplate, data)
 	if err != nil {
 		return err
 	}
 
-	tmpl, err = template.New("frontendAuthServiceTest").Parse(frontendAuthServiceTestTemplate)
-	if err != nil {
-		return err
-	}
-
-	file, err = os.OpenFile(path.Join(prj.Path, "services", "frontend_auth_service_test.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	err = tmpl.Execute(file, data)
+	err = helpers.WriteTemplateToFile(prj, path.Join("services", "frontend_auth_service_test.go"), frontendAuthServiceTestTemplate, data)
 	if err != nil {
 		return err
 	}
@@ -157,52 +123,27 @@ func buildUserStore(prj *project.Project) error {
 		"modelModule": modelName,
 	}
 
-	//todo add store for project without sqlc
+	// todo add store for project without sqlc
 	if prj.Extras.HasExtra(project.SQLC) {
 		templateString := sqlcPostgresUserStoreTemplate
 		if prj.Database == project.MySQL {
 			templateString = sqlcMysqlUserStoreTemplate
 		}
 
-		tmpl, err := template.New("userStore").Parse(templateString)
-
+		err := helpers.WriteTemplateToFile(prj, path.Join("stores", "user_store.go"), templateString, data)
 		if err != nil {
 			return err
 		}
-
-		file, err := os.OpenFile(path.Join(prj.Path, "stores", "user_store.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-		if err != nil {
-			return err
-		}
-
-		err = tmpl.Execute(file, data)
-		if err != nil {
-			return err
-		}
-
-		file.Close()
 	} else {
 		templateString := mysqlUserStoreTemplate
 		if prj.Database == project.Postgres {
 			templateString = postgresUserStoreTemplate
 		}
 
-		tmpl, err := template.New("userStore").Parse(templateString)
+		err := helpers.WriteTemplateToFile(prj, path.Join("stores", "user_store.go"), templateString, data)
 		if err != nil {
 			return err
 		}
-
-		file, err := os.OpenFile(path.Join(prj.Path, "stores", "user_store.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-		if err != nil {
-			return err
-		}
-
-		err = tmpl.Execute(file, data)
-		if err != nil {
-			return err
-		}
-
-		file.Close()
 	}
 
 	templateString := postgresUserStoreTestTemplate
@@ -210,22 +151,10 @@ func buildUserStore(prj *project.Project) error {
 		templateString = mysqlUserStoreTestTemplate
 	}
 
-	tmpl, err := template.New("userStoreTest").Parse(templateString)
+	err := helpers.WriteTemplateToFile(prj, path.Join("stores", "user_store_test.go"), templateString, data)
 	if err != nil {
 		return err
 	}
-
-	file, err := os.OpenFile(path.Join(prj.Path, "stores", "user_store_test.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	err = tmpl.Execute(file, data)
-	if err != nil {
-		return err
-	}
-
-	file.Close()
 
 	return nil
 }
@@ -255,39 +184,15 @@ func buildUserModel(prj *project.Project) error {
 			templateString = postgresUserQueryTemplate
 		}
 
-		tmpl, err := template.New("userQuery").Parse(templateString)
+		err := helpers.WriteTemplateToFile(prj, path.Join("queries", "user.sql"), templateString, nil)
 		if err != nil {
 			return err
 		}
-
-		file, err := os.OpenFile(path.Join(prj.Path, "queries", "user.sql"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-		if err != nil {
-			return err
-		}
-
-		err = tmpl.Execute(file, nil)
-		if err != nil {
-			return err
-		}
-
-		file.Close()
 	} else {
-		tmpl, err := template.New("userModel").Parse(userModelTemplate)
+		err := helpers.WriteTemplateToFile(prj, path.Join("models", "user.go"), userModelTemplate, nil)
 		if err != nil {
 			return err
 		}
-
-		file, err := os.OpenFile(path.Join(prj.Path, "models", "user.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-		if err != nil {
-			return err
-		}
-
-		err = tmpl.Execute(file, nil)
-		if err != nil {
-			return err
-		}
-
-		file.Close()
 	}
 
 	databaseTemplate := createUsersTableTemplatePostgres
@@ -295,17 +200,10 @@ func buildUserModel(prj *project.Project) error {
 		databaseTemplate = createUsersTableTemplateMysql
 	}
 
-	tmpl, err := template.New("createUsersTableMysql").Parse(databaseTemplate)
+	err := helpers.WriteTemplateToFile(prj, path.Join("migrations", project.GenerateTimestamp()+"_create_users_table.sql"), databaseTemplate, nil)
 	if err != nil {
 		return err
 	}
-
-	file, err := os.OpenFile(path.Join(prj.Path, "migrations", project.GenerateTimestamp()+"_create_users_table.sql"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	err = tmpl.Execute(file, nil)
 
 	return nil
 }
@@ -316,19 +214,7 @@ var loginRequestTemplate string
 func buildLoginRequest(prj *project.Project) error {
 	prj.Logger.Debug("Building extra LoginRequest")
 
-	tmpl, err := template.New("loginRequest").Parse(loginRequestTemplate)
-	if err != nil {
-		return err
-	}
-
-	file, err := os.OpenFile(path.Join(prj.Path, "requests", "login_request.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	err = tmpl.Execute(file, nil)
+	err := helpers.WriteTemplateToFile(prj, path.Join("requests", "login_request.go"), loginRequestTemplate, nil)
 	if err != nil {
 		return err
 	}
@@ -342,19 +228,10 @@ var middlewareTemplate string
 func buildMiddleware(prj *project.Project) error {
 	prj.Logger.Debug("Building extra Middleware")
 
-	tmpl, err := template.New("middleware").Parse(middlewareTemplate)
+	err := helpers.WriteTemplateToFile(prj, path.Join("middleware", "frontend_auth_middleware.go"), middlewareTemplate, nil)
 	if err != nil {
 		return err
 	}
-
-	file, err := os.OpenFile(path.Join(prj.Path, "middleware", "frontend_auth_middleware.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	err = tmpl.Execute(file, nil)
 
 	return nil
 }
@@ -364,15 +241,6 @@ var mock_usersstore_template string
 
 func buildMockUsersStore(prj *project.Project) error {
 	prj.Logger.Debug("Generating test_helpers/mock_usersstore.go")
-
-	tmpl, err := template.New("mock_usersstore").Parse(mock_usersstore_template)
-
-	file, err := os.OpenFile(path.Join(prj.Path, "test_helpers", "mock_user_store.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
 
 	modelName := "models"
 	if prj.Extras.HasExtra(project.SQLC) {
@@ -384,10 +252,11 @@ func buildMockUsersStore(prj *project.Project) error {
 		"modelModule": modelName,
 	}
 
-	err = tmpl.Execute(file, data)
+	err := helpers.WriteTemplateToFile(prj, path.Join("test_helpers", "mock_user_store.go"), mock_usersstore_template, data)
 	if err != nil {
 		return err
 	}
+
 	prj.Logger.Debug("Generated test_helpers/mock_usersstore.go")
 	return nil
 }

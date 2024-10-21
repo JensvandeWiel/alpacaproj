@@ -9,7 +9,6 @@ import (
 	"os"
 	"path"
 	"strings"
-	"text/template"
 )
 
 type HandlerGenerator struct {
@@ -40,12 +39,8 @@ var ErrHandlerExists = errors.New("handler already exists")
 func (g *HandlerGenerator) Generate() error {
 	g.prj.Logger.Info("Generating handler: " + g.camelName)
 	fileName := path.Join(g.prj.Path, "handlers", g.snakeName+".go")
-	tmpl, err := template.New("handler").Parse(handlerTemplate)
-	if err != nil {
-		return err
-	}
 
-	err = helpers.CreateDirectories(g.prj.Path, []string{"handlers"}, os.ModePerm)
+	err := helpers.CreateDirectories(g.prj.Path, []string{"handlers"}, os.ModePerm)
 	if err != nil {
 		return err
 	}
@@ -54,23 +49,17 @@ func (g *HandlerGenerator) Generate() error {
 		return ErrHandlerExists
 	}
 
-	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
 	data := map[string]interface{}{
 		"handlerName": g.camelName,
 		"snakeName":   g.snakeName,
 		"packageName": g.prj.PackageName,
 	}
 
-	err = tmpl.Execute(file, data)
+	err = helpers.WriteTemplateToFile(g.prj, fileName, handlerTemplate, data)
 	if err != nil {
 		return err
 	}
+
 	g.prj.Logger.Info("Handler generated: " + g.camelName)
 	return nil
 }

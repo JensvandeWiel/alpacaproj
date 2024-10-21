@@ -5,7 +5,6 @@ import (
 	"github.com/JensvandeWiel/alpacaproj/helpers"
 	"github.com/JensvandeWiel/alpacaproj/project"
 	"os"
-	"os/exec"
 	"path"
 	"text/template"
 )
@@ -40,7 +39,7 @@ func BuildFrontend(prj *project.Project) error {
 		return err
 	}
 
-	err = installPackages(prj)
+	err = helpers.InstallNPMPackages(prj, "frontend")
 	if err != nil {
 		return err
 	}
@@ -71,19 +70,4 @@ func buildFrontend_Frontend(prj *project.Project) error {
 	defer file.Close()
 
 	return tmpl.Execute(file, nil)
-}
-
-func installPackages(prj *project.Project) error {
-	prj.Logger.Debug("Installing packages")
-	cmd := exec.Command("bun", "install")
-	cmd.Dir = path.Join(prj.Path, "frontend")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	err := cmd.Run()
-	if err != nil {
-		return err
-	}
-
-	return nil
 }

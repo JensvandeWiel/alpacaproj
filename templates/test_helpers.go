@@ -4,16 +4,13 @@ import (
 	_ "embed"
 	"github.com/JensvandeWiel/alpacaproj/helpers"
 	"github.com/JensvandeWiel/alpacaproj/project"
-	"os"
-	"path"
-	"text/template"
 )
 
 //go:embed sources/test_helpers/setup_db_mysql.go.tmpl
-var setup_test_helpers_mysql_template []byte
+var setupTestHelpersMySQLTemplate string
 
 //go:embed sources/test_helpers/setup_db_postgres.go.tmpl
-var setup_test_helpers_postgres_template []byte
+var setupTestHelpersPostgresTemplate string
 
 func BuildTestHelpers(prj *project.Project) error {
 	prj.Logger.Debug("Generating test helpers")
@@ -25,12 +22,12 @@ func BuildTestHelpers(prj *project.Project) error {
 
 	switch prj.Database {
 	case "mysql":
-		err = buildTestHelpers_MySQL(prj)
+		err = buildTestHelpersMySQL(prj)
 		if err != nil {
 			return err
 		}
 	case "postgres":
-		err = buildTestHelpers_Postgres(prj)
+		err = buildTestHelpersPostgres(prj)
 		if err != nil {
 			return err
 		}
@@ -44,77 +41,53 @@ func BuildTestHelpers(prj *project.Project) error {
 	return nil
 }
 
-func buildTestHelpers_MySQL(prj *project.Project) error {
+func buildTestHelpersMySQL(prj *project.Project) error {
 	prj.Logger.Debug("Generating test_helpers/setup_db.go")
-
-	tmpl, err := template.New("setup_test_helpers_mysql").Parse(string(setup_test_helpers_mysql_template))
-
-	file, err := os.OpenFile(path.Join(prj.Path, "test_helpers", "setup_db.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
 
 	data := map[string]interface{}{
 		"packageName": prj.PackageName,
 	}
 
-	err = tmpl.Execute(file, data)
+	err := helpers.WriteTemplateToFile(prj, "test_helpers/setup_db.go", setupTestHelpersMySQLTemplate, data)
 	if err != nil {
 		return err
 	}
+
 	prj.Logger.Debug("Generated test_helpers/setup_db.go")
 	return nil
 }
 
-func buildTestHelpers_Postgres(prj *project.Project) error {
+func buildTestHelpersPostgres(prj *project.Project) error {
 	prj.Logger.Debug("Generating test_helpers/setup_db.go")
-
-	tmpl, err := template.New("setup_test_helpers_postgres").Parse(string(setup_test_helpers_postgres_template))
-
-	file, err := os.OpenFile(path.Join(prj.Path, "test_helpers", "setup_db.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
 
 	data := map[string]interface{}{
 		"packageName": prj.PackageName,
 	}
 
-	err = tmpl.Execute(file, data)
+	err := helpers.WriteTemplateToFile(prj, "test_helpers/setup_db.go", setupTestHelpersPostgresTemplate, data)
 	if err != nil {
 		return err
 	}
+
 	prj.Logger.Debug("Generated test_helpers/setup_db.go")
 	return nil
 }
 
 //go:embed sources/test_helpers/echo_context_template.go.tmpl
-var echo_context_template string
+var echoContextTemplate string
 
 func buildEchoContext(prj *project.Project) error {
 	prj.Logger.Debug("Generating test_helpers/echo_context.go")
-
-	tmpl, err := template.New("echo_context").Parse(echo_context_template)
-
-	file, err := os.OpenFile(path.Join(prj.Path, "test_helpers", "echo_context.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
 
 	data := map[string]interface{}{
 		"packageName": prj.PackageName,
 	}
 
-	err = tmpl.Execute(file, data)
+	err := helpers.WriteTemplateToFile(prj, "test_helpers/echo_context.go", echoContextTemplate, data)
 	if err != nil {
 		return err
 	}
+
 	prj.Logger.Debug("Generated test_helpers/echo_context.go")
 	return nil
 }

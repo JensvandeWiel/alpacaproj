@@ -5,20 +5,13 @@ import (
 	"github.com/JensvandeWiel/alpacaproj/helpers"
 	"github.com/JensvandeWiel/alpacaproj/project"
 	"os"
-	"os/exec"
 	"path"
-	"text/template"
 )
 
 func buildReactInertiaFrontend(prj *project.Project) error {
 	prj.Logger.Debug("Building React Inertia frontend")
 
-	cmd := exec.Command("bun", "create", "vite", "--template", "react-ts", "frontend")
-	cmd.Dir = prj.Path
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	err := cmd.Run()
+	err := helpers.RunCommand(prj.Path, true, "bun", "create", "vite", "--template", "react-ts", "frontend")
 	if err != nil {
 		return err
 	}
@@ -46,28 +39,21 @@ func buildReactInertiaFrontend(prj *project.Project) error {
 }
 
 //go:embed sources/frontend/react/vite.config.ts.tmpl
-var react_vite_config_template []byte
+var reactViteConfigTemplate string
 
 func buildViteReactConfig(prj *project.Project) error {
 	prj.Logger.Debug("Building Vite React config at frontend/vite.config.ts")
 
-	tmpl, err := template.New("react_vite_config").Parse(string(react_vite_config_template))
+	err := helpers.WriteTemplateToFile(prj, "frontend/vite.config.ts", reactViteConfigTemplate, nil)
 	if err != nil {
 		return err
 	}
 
-	file, err := os.OpenFile(path.Join(prj.Path, "frontend/vite.config.ts"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	return tmpl.Execute(file, nil)
+	return nil
 }
 
 //go:embed sources/frontend/react/root.gohtml.tmpl
-var react_root_template []byte
+var reactRootTemplate string
 
 func buildReactRoot(prj *project.Project) error {
 	prj.Logger.Debug("Building React root component at frontend/root.gohtml")
@@ -79,7 +65,7 @@ func buildReactRoot(prj *project.Project) error {
 
 	defer file.Close()
 
-	_, err = file.Write(react_root_template)
+	_, err = file.Write([]byte(reactRootTemplate))
 	if err != nil {
 		return err
 	}
@@ -88,19 +74,12 @@ func buildReactRoot(prj *project.Project) error {
 }
 
 //go:embed sources/frontend/react/package.json.tmpl
-var react_package_json_template []byte
+var reactPackageJSONTemplate string
 
 func buildReactPackageJSON(prj *project.Project) error {
 	prj.Logger.Debug("Building React package.json")
 
-	file, err := os.OpenFile(path.Join(prj.Path, "frontend/package.json"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	_, err = file.Write(react_package_json_template)
+	err := helpers.WriteTemplateToFile(prj, "frontend/package.json", reactPackageJSONTemplate, nil)
 	if err != nil {
 		return err
 	}
@@ -109,12 +88,12 @@ func buildReactPackageJSON(prj *project.Project) error {
 }
 
 //go:embed sources/frontend/react/src
-var react_src_template embed.FS
+var reactSrcTemplate embed.FS
 
 func buildReactSrc(prj *project.Project) error {
 	prj.Logger.Debug("Building React src")
 
-	//delete all files in src
+	// delete all files in src
 	err := os.RemoveAll(path.Join(prj.Path, "frontend/src"))
 	if err != nil {
 		return err
@@ -125,7 +104,7 @@ func buildReactSrc(prj *project.Project) error {
 		return err
 	}
 
-	err = helpers.CopyEmbeddedFiles(react_src_template, "sources/frontend/react/src", path.Join(prj.Path, "frontend/src"))
+	err = helpers.CopyEmbeddedFiles(reactSrcTemplate, "sources/frontend/react/src", path.Join(prj.Path, "frontend/src"))
 	if err != nil {
 		return err
 	}

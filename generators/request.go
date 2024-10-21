@@ -8,7 +8,6 @@ import (
 	"github.com/iancoleman/strcase"
 	"os"
 	"strings"
-	"text/template"
 )
 
 type RequestGenerator struct {
@@ -40,12 +39,7 @@ func (g *RequestGenerator) Generate() error {
 	g.prj.Logger.Info("Generating request: " + g.camelName)
 	fileName := g.prj.Path + "/requests/" + g.snakeName + ".go"
 
-	tmpl, err := template.New("request").Parse(requestTemplate)
-	if err != nil {
-		return err
-	}
-
-	err = helpers.CreateDirectories(g.prj.Path, []string{"requests"}, os.ModePerm)
+	err := helpers.CreateDirectories(g.prj.Path, []string{"requests"}, os.ModePerm)
 	if err != nil {
 		return err
 	}
@@ -54,22 +48,15 @@ func (g *RequestGenerator) Generate() error {
 		return ErrRequestExists
 	}
 
-	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
 	data := map[string]interface{}{
 		"camelName": g.camelName,
 	}
 
-	defer file.Close()
-
-	err = tmpl.Execute(file, data)
+	err = helpers.WriteTemplateToFile(g.prj, fileName, requestTemplate, data)
 	if err != nil {
 		return err
 	}
-	g.prj.Logger.Info("Request generated: " + g.camelName)
 
+	g.prj.Logger.Info("Request generated: " + g.camelName)
 	return nil
 }

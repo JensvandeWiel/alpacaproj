@@ -9,7 +9,6 @@ import (
 	"github.com/gertd/go-pluralize"
 	"github.com/iancoleman/strcase"
 	"os"
-	"os/exec"
 	"strings"
 	"text/template"
 	"time"
@@ -534,15 +533,5 @@ func (g *ModelGenerator) generateSQLCPostgresQueryFile() error {
 }
 
 func (g *ModelGenerator) runSQLC() error {
-	g.prj.Logger.Debug("Running SQLC code Generator")
-	com := exec.Command("sqlc", "generate")
-	com.Dir = g.prj.Path
-	com.Stdout = os.Stdout
-	com.Stderr = os.Stderr
-	err := com.Run()
-	if err != nil {
-		return err
-	}
-	g.prj.Logger.Debug("Ran SQLC code Generator")
-	return nil
+	return helpers.GenerateSQLCDefinitions(g.prj)
 }

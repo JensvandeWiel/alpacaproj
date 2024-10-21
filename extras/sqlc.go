@@ -2,10 +2,8 @@ package extras
 
 import (
 	_ "embed"
+	"github.com/JensvandeWiel/alpacaproj/helpers"
 	"github.com/JensvandeWiel/alpacaproj/project"
-	"os"
-	"path"
-	"text/template"
 )
 
 func BuildSQLC(prj *project.Project) error {
@@ -20,22 +18,10 @@ func BuildSQLC(prj *project.Project) error {
 }
 
 //go:embed templates/sqlc/sqlc.yaml.tmpl
-var sqlc_template []byte
+var sqlcTemplate string
 
 func buildSQLCConfig(prj *project.Project) error {
 	prj.Logger.Debug("Generating sqlc.yaml")
-
-	templ, err := template.New("sqlc").Parse(string(sqlc_template))
-	if err != nil {
-		return err
-	}
-
-	file, err := os.OpenFile(path.Join(prj.Path, "sqlc.yaml"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
 
 	dbDriver := prj.Database
 	if dbDriver == project.Postgres {
@@ -46,7 +32,7 @@ func buildSQLCConfig(prj *project.Project) error {
 		"databaseDriver": dbDriver,
 	}
 
-	err = templ.Execute(file, data)
+	err := helpers.WriteTemplateToFile(prj, "sqlc.yaml", sqlcTemplate, data)
 	if err != nil {
 		return err
 	}

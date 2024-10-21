@@ -4,13 +4,10 @@ import (
 	_ "embed"
 	"github.com/JensvandeWiel/alpacaproj/helpers"
 	"github.com/JensvandeWiel/alpacaproj/project"
-	"os"
-	"path"
-	"text/template"
 )
 
 //go:embed sources/cmd/server/database_mysql.go.tmpl
-var server_database_template []byte
+var serverDatabaseMySQLTemplate string
 
 // buildCMDServer_DatabaseMySQL generates the cmd/server/database_mysql.go file
 func buildCMDServer_DatabaseMySQL(prj *project.Project) error {
@@ -20,29 +17,18 @@ func buildCMDServer_DatabaseMySQL(prj *project.Project) error {
 		return nil
 	}
 
-	tmpl, err := template.New("server_database_mysql").Parse(string(server_database_template))
+	err := helpers.WriteTemplateToFile(prj, "cmd/server/database_mysql.go", serverDatabaseMySQLTemplate, nil)
 	if err != nil {
 		return err
 	}
 
-	err = helpers.CreateDirectories(prj.Path, []string{"cmd/server"}, 0755)
-	if err != nil {
-		return err
-	}
-
-	file, err := os.OpenFile(path.Join(prj.Path, "cmd/server/database_mysql.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	return tmpl.Execute(file, nil)
-
+	return nil
 }
 
 //go:embed sources/cmd/server/database_postgres.go.tmpl
-var server_database_postgres_template []byte
+var serverDatabasePostgresTemplate string
 
+// buildCMDServer_DatabasePostgres generates the cmd/server/database_postgres.go file
 func buildCMDServer_DatabasePostgres(prj *project.Project) error {
 	prj.Logger.Debug("Generating cmd/server/database_postgres.go")
 	if prj.Database != project.Postgres {
@@ -50,23 +36,12 @@ func buildCMDServer_DatabasePostgres(prj *project.Project) error {
 		return nil
 	}
 
-	tmpl, err := template.New("server_database_postgres").Parse(string(server_database_postgres_template))
+	err := helpers.WriteTemplateToFile(prj, "cmd/server/database_postgres.go", serverDatabasePostgresTemplate, nil)
 	if err != nil {
 		return err
 	}
 
-	err = helpers.CreateDirectories(prj.Path, []string{"cmd/server"}, 0755)
-	if err != nil {
-		return err
-	}
-
-	file, err := os.OpenFile(path.Join(prj.Path, "cmd/server/database_postgres.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	return tmpl.Execute(file, nil)
+	return nil
 }
 
 func buildCMDServer_Database(prj *project.Project) error {
@@ -78,11 +53,10 @@ func buildCMDServer_Database(prj *project.Project) error {
 	default:
 		panic("unknown database driver")
 	}
-
 }
 
 //go:embed sources/cmd/server/goose.go.tmpl
-var server_goose_template []byte
+var serverGooseTemplate string
 
 func parseGooseDialect(database project.DatabaseDriver) string {
 	switch database {
@@ -99,52 +73,25 @@ func parseGooseDialect(database project.DatabaseDriver) string {
 func buildCMDServer_Goose(prj *project.Project) error {
 	prj.Logger.Debug("Generating cmd/server/goose.go")
 
-	tmpl, err := template.New("server_goose").Parse(string(server_goose_template))
-	if err != nil {
-		return err
-	}
-
-	err = helpers.CreateDirectories(prj.Path, []string{"cmd/server"}, 0755)
-	if err != nil {
-		return err
-	}
-
-	file, err := os.OpenFile(path.Join(prj.Path, "cmd/server/goose.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
 	data := map[string]interface{}{
 		"dialect":     parseGooseDialect(prj.Database),
 		"packageName": prj.PackageName,
 	}
 
-	return tmpl.Execute(file, data)
+	err := helpers.WriteTemplateToFile(prj, "cmd/server/goose.go", serverGooseTemplate, data)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 //go:embed sources/cmd/server/main.go.tmpl
-var server_main_template []byte
+var serverMainTemplate string
 
 // buildCMDServer_Main generates the cmd/server/main.go file
 func buildCMDServer_Main(prj *project.Project) error {
 	prj.Logger.Debug("Generating cmd/server/main.go")
-
-	tmpl, err := template.New("server_main").Parse(string(server_main_template))
-	if err != nil {
-		return err
-	}
-
-	err = helpers.CreateDirectories(prj.Path, []string{"cmd/server"}, 0755)
-	if err != nil {
-		return err
-	}
-
-	file, err := os.OpenFile(path.Join(prj.Path, "cmd/server/main.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
 
 	data := map[string]interface{}{
 		"packageName": prj.PackageName,
@@ -153,37 +100,31 @@ func buildCMDServer_Main(prj *project.Project) error {
 		"database":    prj.Database,
 	}
 
-	return tmpl.Execute(file, data)
+	err := helpers.WriteTemplateToFile(prj, "cmd/server/main.go", serverMainTemplate, data)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 //go:embed sources/cmd/server/serve.go.tmpl
-var server_serve_template []byte
+var serverServeTemplate string
 
 // buildCMDServer_Serve generates the cmd/server/serve.go file
 func buildCMDServer_Serve(prj *project.Project) error {
 	prj.Logger.Debug("Generating cmd/server/serve.go")
 
-	tmpl, err := template.New("server_serve").Parse(string(server_serve_template))
-	if err != nil {
-		return err
-	}
-
-	err = helpers.CreateDirectories(prj.Path, []string{"cmd/server"}, 0755)
-	if err != nil {
-		return err
-	}
-
-	file, err := os.OpenFile(path.Join(prj.Path, "cmd/server/serve.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
 	data := map[string]interface{}{
 		"packageName": prj.PackageName,
 	}
 
-	return tmpl.Execute(file, data)
+	err := helpers.WriteTemplateToFile(prj, "cmd/server/serve.go", serverServeTemplate, data)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func BuildCMD(prj *project.Project) error {
