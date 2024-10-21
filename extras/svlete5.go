@@ -2,10 +2,8 @@ package extras
 
 import (
 	_ "embed"
+	"github.com/JensvandeWiel/alpacaproj/helpers"
 	"github.com/JensvandeWiel/alpacaproj/project"
-	"os"
-	"os/exec"
-	"path"
 )
 
 func BuildSvelte5(prj *project.Project) error {
@@ -21,7 +19,7 @@ func BuildSvelte5(prj *project.Project) error {
 		return err
 	}
 
-	err = installPackages(prj)
+	err = helpers.InstallNPMPackages(prj, "frontend")
 	if err != nil {
 		return err
 	}
@@ -30,24 +28,12 @@ func BuildSvelte5(prj *project.Project) error {
 }
 
 //go:embed templates/svelte5/package.json.tmpl
-var svelte5_package_json_template []byte
+var svelte5PackageJSONTemplate string
 
 func buildPackageJSON(prj *project.Project) error {
 	prj.Logger.Debug("Building Svelte 5 package.json")
 
-	file, err := os.OpenFile(path.Join(prj.Path, "frontend/package.json"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	err = os.Truncate(path.Join(prj.Path, "frontend/package.json"), 0)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	_, err = file.Write(svelte5_package_json_template)
+	err := helpers.WriteTemplateToFile(prj, "frontend/package.json", svelte5PackageJSONTemplate, nil)
 	if err != nil {
 		return err
 	}
@@ -56,41 +42,12 @@ func buildPackageJSON(prj *project.Project) error {
 }
 
 //go:embed templates/svelte5/main.ts.tmpl
-var svelte5_main_ts_template []byte
+var svelte5MainTSTemplate string
 
 func buildMainTS(prj *project.Project) error {
 	prj.Logger.Debug("Building Svelte 5 main.ts")
 
-	file, err := os.OpenFile(path.Join(prj.Path, "frontend/src/main.ts"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	err = os.Truncate(path.Join(prj.Path, "frontend/src/main.ts"), 0)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	_, err = file.Write(svelte5_main_ts_template)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func installPackages(prj *project.Project) error {
-	prj.Logger.Debug("Installing Svelte 5 packages")
-
-	cmd := exec.Command("bun", "install")
-	cmd.Dir = path.Join(prj.Path, "frontend")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	err := cmd.Run()
+	err := helpers.WriteTemplateToFile(prj, "frontend/src/main.ts", svelte5MainTSTemplate, nil)
 	if err != nil {
 		return err
 	}

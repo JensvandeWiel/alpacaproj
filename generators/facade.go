@@ -8,7 +8,6 @@ import (
 	"github.com/iancoleman/strcase"
 	"os"
 	"strings"
-	"text/template"
 )
 
 type FacadeGenerator struct {
@@ -40,12 +39,7 @@ func (g *FacadeGenerator) Generate() error {
 	g.prj.Logger.Info("Generating facade: " + g.camelName)
 	fileName := g.prj.Path + "/facades/" + g.snakeName + ".go"
 
-	tmpl, err := template.New("facade").Parse(facadeTemplate)
-	if err != nil {
-		return err
-	}
-
-	err = helpers.CreateDirectories(g.prj.Path, []string{"facades"}, os.ModePerm)
+	err := helpers.CreateDirectories(g.prj.Path, []string{"facades"}, os.ModePerm)
 	if err != nil {
 		return err
 	}
@@ -54,21 +48,15 @@ func (g *FacadeGenerator) Generate() error {
 		return ErrFacadeExists
 	}
 
-	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
 	data := map[string]interface{}{
 		"camelName": g.camelName,
 	}
 
-	err = tmpl.Execute(file, data)
+	err = helpers.WriteTemplateToFile(g.prj, fileName, facadeTemplate, data)
 	if err != nil {
 		return err
 	}
+
 	g.prj.Logger.Info("Generated facade: " + g.camelName)
 	return nil
 }

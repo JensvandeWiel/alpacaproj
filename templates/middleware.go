@@ -4,15 +4,13 @@ import (
 	_ "embed"
 	"github.com/JensvandeWiel/alpacaproj/helpers"
 	"github.com/JensvandeWiel/alpacaproj/project"
-	"os"
-	"path"
 )
 
 //go:embed sources/middleware/helpers.go.tmpl
-var middleware_helpers_template []byte
+var middlewareHelpersTemplate string
 
 //go:embed sources/middleware/middleware.go.tmpl
-var middleware_template []byte
+var middlewareTemplate string
 
 // buildMiddleware_Middleware generates the middleware/middleware.go file
 func buildMiddleware_Middleware(prj *project.Project) error {
@@ -23,14 +21,7 @@ func buildMiddleware_Middleware(prj *project.Project) error {
 		return err
 	}
 
-	file, err := os.OpenFile(path.Join(prj.Path, "middleware/middleware.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	_, err = file.Write(middleware_template)
+	err = helpers.WriteTemplateToFile(prj, "middleware/middleware.go", middlewareTemplate, nil)
 	if err != nil {
 		return err
 	}
@@ -47,14 +38,7 @@ func buildMiddleware_Helpers(prj *project.Project) error {
 		return err
 	}
 
-	file, err := os.OpenFile(path.Join(prj.Path, "middleware/helpers.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	_, err = file.Write(middleware_helpers_template)
+	err = helpers.WriteTemplateToFile(prj, "middleware/helpers.go", middlewareHelpersTemplate, nil)
 	if err != nil {
 		return err
 	}

@@ -9,17 +9,18 @@ import (
 // Define the priority map
 var extraPriority = map[project.ExtraOption]int{
 	project.Svelte5:      0,
-	project.SQLC:         0,
+	project.SQLC:         2,
 	project.FrontendAuth: 1,
 }
 
 func ApplyExtras(prj *project.Project) error {
 	// Sort extras based on the priority map
 	sort.Slice(prj.Extras, func(i, j int) bool {
-		return extraPriority[prj.Extras[i]] < extraPriority[prj.Extras[j]]
+		return extraPriority[prj.Extras[i]] > extraPriority[prj.Extras[j]]
 	})
 
 	for _, extra := range prj.Extras {
+		prj.Logger.Debug("Applying extra", "extra", extra)
 		switch extra {
 		case project.Svelte5:
 			if prj.FrontendType != project.InertiaSvelte {

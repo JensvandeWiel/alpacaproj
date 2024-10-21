@@ -5,20 +5,13 @@ import (
 	"github.com/JensvandeWiel/alpacaproj/helpers"
 	"github.com/JensvandeWiel/alpacaproj/project"
 	"os"
-	"os/exec"
 	"path"
-	"text/template"
 )
 
 func buildSvelteInertiaFrontend(prj *project.Project) error {
 	prj.Logger.Debug("Building Svelte Inertia frontend")
 
-	cmd := exec.Command("bun", "create", "vite", "--template", "svelte-ts", "frontend")
-	cmd.Dir = prj.Path
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	err := cmd.Run()
+	err := helpers.RunCommand(prj.Path, true, "bun", "create", "vite", "--template", "svelte-ts", "frontend")
 	if err != nil {
 		return err
 	}
@@ -46,28 +39,21 @@ func buildSvelteInertiaFrontend(prj *project.Project) error {
 }
 
 //go:embed sources/frontend/svelte/vite.config.ts.tmpl
-var svelte_vite_config_template []byte
+var svelteViteConfigTemplate string
 
 func buildViteSvelteConfig(prj *project.Project) error {
 	prj.Logger.Debug("Building Vite Svelte config at frontend/vite.config.ts")
 
-	tmpl, err := template.New("svelte_vite_config").Parse(string(svelte_vite_config_template))
+	err := helpers.WriteTemplateToFile(prj, "frontend/vite.config.ts", svelteViteConfigTemplate, nil)
 	if err != nil {
 		return err
 	}
 
-	file, err := os.OpenFile(path.Join(prj.Path, "frontend/vite.config.ts"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	return tmpl.Execute(file, nil)
+	return nil
 }
 
 //go:embed sources/frontend/svelte/root.gohtml.tmpl
-var svelte_root_template []byte
+var svelteRootTemplate string
 
 func buildSvelteRoot(prj *project.Project) error {
 	prj.Logger.Debug("Building Svelte root component at frontend/root.gohtml")
@@ -79,7 +65,7 @@ func buildSvelteRoot(prj *project.Project) error {
 
 	defer file.Close()
 
-	_, err = file.Write(svelte_root_template)
+	_, err = file.Write([]byte(svelteRootTemplate))
 	if err != nil {
 		return err
 	}
@@ -88,19 +74,12 @@ func buildSvelteRoot(prj *project.Project) error {
 }
 
 //go:embed sources/frontend/svelte/package.json.tmpl
-var svelte_package_json_template []byte
+var sveltePackageJSONTemplate string
 
 func buildSveltePackageJSON(prj *project.Project) error {
 	prj.Logger.Debug("Building Svelte package.json")
 
-	file, err := os.OpenFile(path.Join(prj.Path, "frontend/package.json"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	_, err = file.Write(svelte_package_json_template)
+	err := helpers.WriteTemplateToFile(prj, "frontend/package.json", sveltePackageJSONTemplate, nil)
 	if err != nil {
 		return err
 	}
@@ -109,12 +88,12 @@ func buildSveltePackageJSON(prj *project.Project) error {
 }
 
 //go:embed sources/frontend/svelte/src
-var svelte_src_template embed.FS
+var svelteSrcTemplate embed.FS
 
 func buildSvelteSrc(prj *project.Project) error {
 	prj.Logger.Debug("Building Svelte src")
 
-	//delete all files in src
+	// delete all files in src
 	err := os.RemoveAll(path.Join(prj.Path, "frontend/src"))
 	if err != nil {
 		return err
@@ -125,7 +104,7 @@ func buildSvelteSrc(prj *project.Project) error {
 		return err
 	}
 
-	err = helpers.CopyEmbeddedFiles(svelte_src_template, "sources/frontend/svelte/src", path.Join(prj.Path, "frontend/src"))
+	err = helpers.CopyEmbeddedFiles(svelteSrcTemplate, "sources/frontend/svelte/src", path.Join(prj.Path, "frontend/src"))
 	if err != nil {
 		return err
 	}

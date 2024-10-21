@@ -5,20 +5,13 @@ import (
 	"github.com/JensvandeWiel/alpacaproj/helpers"
 	"github.com/JensvandeWiel/alpacaproj/project"
 	"os"
-	"os/exec"
 	"path"
-	"text/template"
 )
 
 func buildVueInertiaFrontend(prj *project.Project) error {
 	prj.Logger.Debug("Building Vue Inertia frontend")
 
-	cmd := exec.Command("bun", "create", "vite", "--template", "vue-ts", "frontend")
-	cmd.Dir = prj.Path
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	err := cmd.Run()
+	err := helpers.RunCommand(prj.Path, true, "bun", "create", "vite", "--template", "vue-ts", "frontend")
 	if err != nil {
 		return err
 	}
@@ -46,28 +39,21 @@ func buildVueInertiaFrontend(prj *project.Project) error {
 }
 
 //go:embed sources/frontend/vue/vite.config.ts.tmpl
-var vue_vite_config_template []byte
+var vueViteConfigTemplate string
 
 func buildViteVueConfig(prj *project.Project) error {
 	prj.Logger.Debug("Building Vite Vue config at frontend/vite.config.ts")
 
-	tmpl, err := template.New("vue_vite_config").Parse(string(vue_vite_config_template))
+	err := helpers.WriteTemplateToFile(prj, "frontend/vite.config.ts", vueViteConfigTemplate, nil)
 	if err != nil {
 		return err
 	}
 
-	file, err := os.OpenFile(path.Join(prj.Path, "frontend/vite.config.ts"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	return tmpl.Execute(file, nil)
+	return nil
 }
 
 //go:embed sources/frontend/vue/root.gohtml.tmpl
-var vue_root_template []byte
+var vueRootTemplate string
 
 func buildVueRoot(prj *project.Project) error {
 	prj.Logger.Debug("Building Vue root component at frontend/root.gohtml")
@@ -79,7 +65,7 @@ func buildVueRoot(prj *project.Project) error {
 
 	defer file.Close()
 
-	_, err = file.Write(vue_root_template)
+	_, err = file.Write([]byte(vueRootTemplate))
 	if err != nil {
 		return err
 	}
@@ -88,19 +74,12 @@ func buildVueRoot(prj *project.Project) error {
 }
 
 //go:embed sources/frontend/vue/package.json.tmpl
-var vue_package_json_template []byte
+var vuePackageJSONTemplate string
 
 func buildVuePackageJSON(prj *project.Project) error {
 	prj.Logger.Debug("Building Vue package.json")
 
-	file, err := os.OpenFile(path.Join(prj.Path, "frontend/package.json"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	_, err = file.Write(vue_package_json_template)
+	err := helpers.WriteTemplateToFile(prj, "frontend/package.json", vuePackageJSONTemplate, nil)
 	if err != nil {
 		return err
 	}
@@ -109,12 +88,12 @@ func buildVuePackageJSON(prj *project.Project) error {
 }
 
 //go:embed sources/frontend/vue/src
-var vue_src_template embed.FS
+var vueSrcTemplate embed.FS
 
 func buildVueSrc(prj *project.Project) error {
 	prj.Logger.Debug("Building Vue src")
 
-	//delete all files in src
+	// delete all files in src
 	err := os.RemoveAll(path.Join(prj.Path, "frontend/src"))
 	if err != nil {
 		return err
@@ -125,7 +104,7 @@ func buildVueSrc(prj *project.Project) error {
 		return err
 	}
 
-	err = helpers.CopyEmbeddedFiles(vue_src_template, "sources/frontend/vue/src", path.Join(prj.Path, "frontend/src"))
+	err = helpers.CopyEmbeddedFiles(vueSrcTemplate, "sources/frontend/vue/src", path.Join(prj.Path, "frontend/src"))
 	if err != nil {
 		return err
 	}

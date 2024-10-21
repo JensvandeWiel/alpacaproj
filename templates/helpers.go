@@ -4,64 +4,36 @@ import (
 	_ "embed"
 	"github.com/JensvandeWiel/alpacaproj/helpers"
 	"github.com/JensvandeWiel/alpacaproj/project"
-	"os"
-	"path"
-	"text/template"
 )
 
 //go:embed sources/helpers/is_dev.go.tmpl
-var is_dev_template []byte
+var isDevTemplate string
 
 //go:embed sources/helpers/is_release.go.tmpl
-var is_prod_template []byte
+var isProdTemplate string
 
 // buildHelpers_IsDev generates the helpers/is_dev.go file
 func buildHelpers_IsDev(prj *project.Project) error {
 	prj.Logger.Debug("Generating helpers/is_dev.go")
 
-	tmpl, err := template.New("is_dev").Parse(string(is_dev_template))
+	err := helpers.WriteTemplateToFile(prj, "helpers/is_dev.go", isDevTemplate, nil)
 	if err != nil {
 		return err
 	}
 
-	err = helpers.CreateDirectories(prj.Path, []string{"helpers"}, 0755)
-	if err != nil {
-		return err
-	}
-
-	file, err := os.OpenFile(path.Join(prj.Path, "helpers/is_dev.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	return tmpl.Execute(file, nil)
+	return nil
 }
 
 // buildHelpers_IsProd generates the helpers/is_prod.go file
-
 func buildHelpers_IsProd(prj *project.Project) error {
 	prj.Logger.Debug("Generating helpers/is_prod.go")
 
-	tmpl, err := template.New("is_prod").Parse(string(is_prod_template))
+	err := helpers.WriteTemplateToFile(prj, "helpers/is_prod.go", isProdTemplate, nil)
 	if err != nil {
 		return err
 	}
 
-	err = helpers.CreateDirectories(prj.Path, []string{"helpers"}, 0755)
-	if err != nil {
-		return err
-	}
-
-	file, err := os.OpenFile(path.Join(prj.Path, "helpers/is_prod.go"), os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	return tmpl.Execute(file, nil)
+	return nil
 }
 
 func BuildHelpers(prj *project.Project) error {

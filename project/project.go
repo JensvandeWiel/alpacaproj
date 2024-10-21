@@ -53,7 +53,7 @@ const (
 
 	Svelte5      ExtraOption = "svelte5"
 	SQLC         ExtraOption = "sqlc"
-	FrontendAuth ExtraOption = "fontend-auth"
+	FrontendAuth ExtraOption = "frontend-auth"
 )
 
 var (

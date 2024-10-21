@@ -8,7 +8,6 @@ import (
 	"github.com/iancoleman/strcase"
 	"os"
 	"strings"
-	"text/template"
 )
 
 type StoreGenerator struct {
@@ -34,18 +33,13 @@ func NewStoreGenerator(name string, prj *project.Project) *StoreGenerator {
 //go:embed templates/store_template.go.tmpl
 var storeTemplate string
 
-var ErrStoreExists = errors.New("Store already exists")
+var ErrStoreExists = errors.New("store already exists")
 
 func (g *StoreGenerator) Generate() error {
-	g.prj.Logger.Info("Generating Store: " + g.camelName)
+	g.prj.Logger.Info("Generating store: " + g.camelName)
 	fileName := g.prj.Path + "/stores/" + g.snakeName + ".go"
 
-	tmpl, err := template.New("Store").Parse(storeTemplate)
-	if err != nil {
-		return err
-	}
-
-	err = helpers.CreateDirectories(g.prj.Path, []string{"stores"}, os.ModePerm)
+	err := helpers.CreateDirectories(g.prj.Path, []string{"stores"}, os.ModePerm)
 	if err != nil {
 		return err
 	}
@@ -54,21 +48,15 @@ func (g *StoreGenerator) Generate() error {
 		return ErrStoreExists
 	}
 
-	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
 	data := map[string]interface{}{
 		"camelName": g.camelName,
 	}
 
-	err = tmpl.Execute(file, data)
+	err = helpers.WriteTemplateToFile(g.prj, fileName, storeTemplate, data)
 	if err != nil {
 		return err
 	}
-	g.prj.Logger.Info("Generated Store: " + g.camelName)
+
+	g.prj.Logger.Info("Store generated: " + g.camelName)
 	return nil
 }
