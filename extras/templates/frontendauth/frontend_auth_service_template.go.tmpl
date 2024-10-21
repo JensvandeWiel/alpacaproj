@@ -1,0 +1,106 @@
+package services
+
+import (
+	"{{.packageName}}/middleware"
+	"{{.packageName}}/{{.modelModule}}"
+	"{{.packageName}}/requests"
+	"{{.packageName}}/stores"
+	"errors"
+	"github.com/gorilla/sessions"
+	"github.com/labstack/echo/v4"
+	"golang.org/x/crypto/bcrypt"
+)
+
+const (
+	DefaultAuthKey = "is_logged_in"
+)
+
+var (
+	ErrorUserPasswordMismatch = errors.New("user password incorrect")
+	ErrorIsNotLoggedIn        = errors.New("user is not logged in")
+	ErrorUserIdNotInt32       = errors.New("user id is not an int32")
+)
+
+type FrontendAuthService interface {
+	// Login logs in a user using sessions and returns the user
+	Login(ctx echo.Context, request requests.LoginRequest) (*{{.modelModule}}.User, error)
+	// IsLoggedIn checks if a user is logged in
+	IsLoggedIn(session *sessions.Session) bool
+	// GetUser gets the user from the session
+	GetUser(session *sessions.Session) (*{{.modelModule}}.User, error)
+	// Logout logs out a user
+	Logout(ctx echo.Context, session *sessions.Session) error
+}
+
+type FrontendAuthDefaultService struct {
+	uStore stores.UserStore
+}
+
+func NewFrontendAuthDefaultService(uStore stores.UserStore) FrontendAuthService {
+	return &FrontendAuthDefaultService{
+		uStore: uStore,
+	}
+}
+
+func (l *FrontendAuthDefaultService) IsLoggedIn(session *sessions.Session) bool {
+	if val, ok := session.Values[middleware.DefaultAuthKey]; !ok || val == false || val == nil {
+		return false
+	}
+	return true
+}
+
+func (l *FrontendAuthDefaultService) loginSession(ctx echo.Context, user *{{.modelModule}}.User) error {
+	session, err := middleware.GetSession(ctx)
+	if err != nil {
+		return err
+	}
+	session.Values[middleware.SessionUserKey] = user.ID
+	session.Values[middleware.DefaultAuthKey] = true
+	return session.Save(ctx.Request(), ctx.Response())
+}
+
+func (l *FrontendAuthDefaultService) Login(ctx echo.Context, request requests.LoginRequest) (*{{.modelModule}}.User, error) {
+	user, err := l.uStore.GetUserByEmail(request.Email)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(request.Password)); err != nil {
+		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+			return nil, ErrorUserPasswordMismatch
+		}
+		return nil, err
+	}
+
+	// Set session
+	err = l.loginSession(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (l *FrontendAuthDefaultService) GetUser(session *sessions.Session) (*{{.modelModule}}.User, error) {
+	userID, ok := session.Values[middleware.SessionUserKey]
+	if !ok {
+		return nil, ErrorIsNotLoggedIn
+	}
+
+	idAsInt, ok := userID.(int32)
+	if !ok {
+		return nil, ErrorUserIdNotInt32
+	}
+
+	return l.uStore.GetUserById(idAsInt)
+}
+
+func (l *FrontendAuthDefaultService) Logout(ctx echo.Context, session *sessions.Session) error {
+	delete(session.Values, middleware.SessionUserKey)
+	delete(session.Values, middleware.DefaultAuthKey)
+	return session.Save(ctx.Request(), ctx.Response())
+}
+
+func IsUserLoginError(err error) bool {
+	return errors.Is(err, ErrorUserPasswordMismatch) || errors.Is(err, stores.ErrorUserNotFound)
+}

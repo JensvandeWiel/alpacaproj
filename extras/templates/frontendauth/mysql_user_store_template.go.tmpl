@@ -1,0 +1,103 @@
+package stores
+
+import (
+	"{{.packageName}}/models"
+	"database/sql"
+	"errors"
+	"github.com/go-sql-driver/mysql"
+	"github.com/jmoiron/sqlx"
+)
+
+var (
+	ErrorUserNotFound = errors.New("user not found")
+	ErrorInvalidUser  = errors.New("invalid user")
+	ErrorUserExists   = errors.New("user already exists")
+)
+
+type UserStore interface {
+	GetUserById(id int32) (*models.User, error)
+	GetUserByEmail(email string) (*models.User, error)
+	CreateUser(user *models.User) (int64, error)
+	DeleteUser(id int32) error
+}
+
+type DatabaseUserStore struct {
+	db *sqlx.DB
+}
+
+func NewDatabaseUserStore(db *sqlx.DB) UserStore {
+	return &DatabaseUserStore{
+		db: db,
+	}
+}
+
+func (s *DatabaseUserStore) GetUserById(id int32) (*models.User, error) {
+	user := &models.User{}
+	err := s.db.Get(user, "SELECT * FROM users WHERE id = ?", id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrorUserNotFound
+		}
+		return nil, err
+	}
+	return user, nil
+}
+
+func (s *DatabaseUserStore) GetUserByEmail(email string) (*models.User, error) {
+	if email == "" {
+		return nil, ErrorInvalidUser
+	}
+	user := &models.User{}
+	err := s.db.Get(user, "SELECT * FROM users WHERE email = ?", email)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrorUserNotFound
+		}
+		return nil, err
+	}
+	return user, nil
+}
+
+func (s *DatabaseUserStore) CreateUser(user *models.User) (int64, error) {
+	if user == nil {
+		return 0, ErrorInvalidUser
+	}
+	if user.Email == "" || user.Password == "" || user.Name == "" || len(user.Password) < 8 {
+		return 0, ErrorInvalidUser
+	}
+
+	res, err := s.db.NamedExec("INSERT INTO users (email, password, name) VALUES (:email, :password, :name)", &user)
+	if err != nil {
+		var mErr *mysql.MySQLError
+		if errors.As(err, &mErr) {
+			if mErr.Number == 1062 {
+				return 0, ErrorUserExists
+			}
+			return 0, err
+		}
+		return 0, err
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return id, nil
+}
+
+func (s *DatabaseUserStore) DeleteUser(id int32) error {
+	res, err := s.db.Exec("DELETE FROM users WHERE id = ?", id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrorUserNotFound
+	}
+
+	return nil
+}

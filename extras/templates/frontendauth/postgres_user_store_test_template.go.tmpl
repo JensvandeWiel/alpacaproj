@@ -1,0 +1,201 @@
+package stores
+
+import (
+	"{{.packageName}}/{{.modelModule}}"
+	"{{.packageName}}/test_helpers"
+	"errors"
+	"testing"
+)
+
+func TestDatabaseUserStore_GetUserById(t *testing.T) {
+
+	db, cleanup, err := test_helpers.SetupDatabase()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+
+	t.Run("User not found", func(t *testing.T) {
+		store := NewDatabaseUserStore(db)
+		user, err := store.GetUserById(1)
+		if user != nil {
+			t.Errorf("Expected nil, got %v", user)
+		}
+		if !errors.Is(err, ErrorUserNotFound) {
+			t.Errorf("Expected %v, got %v", ErrorUserNotFound, err)
+		}
+	})
+
+	t.Run("User found", func(t *testing.T) {
+		store := NewDatabaseUserStore(db)
+		user := &{{.modelModule}}.User{
+			ID: 1,
+		}
+		_, err := db.NamedExec("INSERT INTO users (id, email, name, password) VALUES (:id, 'dasadsa', 'dasdsad', '12345678')", user)
+		if err != nil {
+			t.Fatal(err)
+		}
+		user, err = store.GetUserById(1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if user == nil {
+			t.Errorf("Expected user, got nil")
+		}
+		if user.ID != 1 {
+			t.Errorf("Expected 1, got %v", user.ID)
+		}
+	})
+}
+
+func TestDatabaseUserStore_GetUserByEmail(t *testing.T) {
+
+	db, cleanup, err := test_helpers.SetupDatabase()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+
+	t.Run("User not found", func(t *testing.T) {
+		store := NewDatabaseUserStore(db)
+		user, err := store.GetUserByEmail("email")
+		if user != nil {
+			t.Errorf("Expected nil, got %v", user)
+		}
+		if !errors.Is(err, ErrorUserNotFound) {
+			t.Errorf("Expected %v, got %v", ErrorUserNotFound, err)
+		}
+	})
+
+	t.Run("User found", func(t *testing.T) {
+		store := NewDatabaseUserStore(db)
+		user := &{{.modelModule}}.User{
+			Email: "email",
+		}
+		_, err := db.NamedExec("INSERT INTO users (email, name, password) VALUES (:email, 'aasd', 'asdasdasd')", user)
+		if err != nil {
+			t.Fatal(err)
+		}
+		user, err = store.GetUserByEmail("email")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if user == nil {
+			t.Errorf("Expected user, got nil")
+		}
+		if user.Email != "email" {
+			t.Errorf("Expected email, got %v", user.Email)
+		}
+	})
+}
+
+func TestDatabaseUserStore_CreateUser(t *testing.T) {
+
+	db, cleanup, err := test_helpers.SetupDatabase()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+
+	t.Run("Invalid user", func(t *testing.T) {
+		store := NewDatabaseUserStore(db)
+		_, err := store.CreateUser(nil)
+		if !errors.Is(err, ErrorInvalidUser) {
+			t.Errorf("Expected %v, got %v", ErrorInvalidUser, err)
+		}
+	})
+
+	t.Run("Invalid email", func(t *testing.T) {
+		store := NewDatabaseUserStore(db)
+		user := &{{.modelModule}}.User{
+			Email:    "",
+			Name:     "name",
+			Password: "password",
+		}
+		_, err := store.CreateUser(user)
+		if !errors.Is(err, ErrorInvalidUser) {
+			t.Errorf("Expected %v, got %v", ErrorInvalidUser, err)
+		}
+	})
+
+	t.Run("Invalid name", func(t *testing.T) {
+		store := NewDatabaseUserStore(db)
+		user := &{{.modelModule}}.User{
+			Email:    "email",
+			Name:     "",
+			Password: "password",
+		}
+		_, err := store.CreateUser(user)
+		if !errors.Is(err, ErrorInvalidUser) {
+			t.Errorf("Expected %v, got %v", ErrorInvalidUser, err)
+		}
+	})
+
+	t.Run("Invalid password", func(t *testing.T) {
+		store := NewDatabaseUserStore(db)
+		user := &{{.modelModule}}.User{
+			Email:    "email",
+			Name:     "name",
+			Password: "",
+		}
+		_, err := store.CreateUser(user)
+		if !errors.Is(err, ErrorInvalidUser) {
+			t.Errorf("Expected %v, got %v", ErrorInvalidUser, err)
+		}
+	})
+
+	t.Run("User created", func(t *testing.T) {
+		store := NewDatabaseUserStore(db)
+		user := &{{.modelModule}}.User{
+			Email:    "email",
+			Name:     "name",
+			Password: "password",
+		}
+		id, err := store.CreateUser(user)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if id == 0 {
+			t.Errorf("Expected id, got 0")
+		}
+	})
+}
+
+func TestDatabaseUserStore_DeleteUser(t *testing.T) {
+
+	db, cleanup, err := test_helpers.SetupDatabase()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+
+	t.Run("User not found", func(t *testing.T) {
+		store := NewDatabaseUserStore(db)
+		err := store.DeleteUser(1)
+		if !errors.Is(err, ErrorUserNotFound) {
+			t.Errorf("Expected %v, got %v", ErrorUserNotFound, err)
+		}
+	})
+
+	t.Run("User deleted", func(t *testing.T) {
+		store := NewDatabaseUserStore(db)
+		row := db.QueryRow("INSERT INTO users (name, email, password) VALUES ('asd', 'asdas', 'password') RETURNING id")
+		if row.Err() != nil {
+			t.Fatal(row.Err())
+		}
+		var id int
+		err = row.Scan(&id)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = store.DeleteUser(int32(id))
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = store.GetUserById(1)
+		if !errors.Is(err, ErrorUserNotFound) {
+			t.Errorf("Expected %v, got %v", ErrorUserNotFound, err)
+		}
+	})
+}

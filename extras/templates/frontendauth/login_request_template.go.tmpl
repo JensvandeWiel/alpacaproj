@@ -1,0 +1,27 @@
+package requests
+
+import "net/mail"
+
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+func (r *LoginRequest) Validate() map[string]string {
+	errs := make(map[string]string)
+
+	if r.Email == "" {
+		errs["email"] = "Email is required"
+	}
+
+	_, err := mail.ParseAddress(r.Email)
+	if err != nil {
+		errs["email"] = "Email is invalid"
+	}
+
+	if r.Password == "" {
+		errs["password"] = "Password is required"
+	}
+
+	return errs
+}

@@ -1,0 +1,96 @@
+package services_test
+
+import (
+	"{{.packageName}}/middleware"
+	"{{.packageName}}/{{.modelModule}}"
+	"{{.packageName}}/requests"
+	"{{.packageName}}/services"
+	"{{.packageName}}/test_helpers"
+	"errors"
+	"golang.org/x/crypto/bcrypt"
+	"net/http"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestFrontendAuthDefaultService_Login(t *testing.T) {
+	encryptedPsswd, err := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mockUser := &{{.modelModule}}.User{
+		ID:       1,
+		Email:    "test@example.com",
+		Password: string(encryptedPsswd), // bcrypt hash for "password"
+	}
+	mockStore := test_helpers.NewMockUsersStore()
+	mockStore.On("GetUserByEmail", "test@example.com").Return(mockUser, nil)
+	authService := services.NewFrontendAuthDefaultService(mockStore)
+
+	ctx, _, _ := test_helpers.SetupEchoContext(t, http.MethodPost, test_helpers.SetupLogger())
+	session := test_helpers.SetupSession(ctx)
+
+	loginRequest := requests.LoginRequest{
+		Email:    "test@example.com",
+		Password: "password",
+	}
+
+	user, err := authService.Login(ctx, loginRequest)
+	assert.NoError(t, err)
+	assert.Equal(t, mockUser, user)
+	assert.True(t, session.Values[middleware.DefaultAuthKey].(bool))
+	assert.Equal(t, mockUser.ID, session.Values[middleware.SessionUserKey])
+}
+
+func TestFrontendAuthDefaultService_IsLoggedIn(t *testing.T) {
+	authService := services.NewFrontendAuthDefaultService(nil)
+
+	ctx, _, _ := test_helpers.SetupEchoContext(t, http.MethodPost, test_helpers.SetupLogger())
+	session := test_helpers.SetupSession(ctx)
+
+	session.Values[middleware.DefaultAuthKey] = true
+	assert.True(t, authService.IsLoggedIn(session))
+
+	session.Values[middleware.DefaultAuthKey] = false
+	assert.False(t, authService.IsLoggedIn(session))
+}
+
+func TestFrontendAuthDefaultService_GetUser(t *testing.T) {
+	mockUser := &{{.modelModule}}.User{
+		ID:    1,
+		Email: "test@example.com",
+	}
+	mockStore := test_helpers.NewMockUsersStore()
+	mockStore.On("GetUserById", int32(1)).Return(mockUser, nil)
+	authService := services.NewFrontendAuthDefaultService(mockStore)
+
+	ctx, _, _ := test_helpers.SetupEchoContext(t, http.MethodPost, test_helpers.SetupLogger())
+	session := test_helpers.SetupSession(ctx)
+
+	session.Values[middleware.SessionUserKey] = mockUser.ID
+	user, err := authService.GetUser(session)
+	assert.NoError(t, err)
+	assert.Equal(t, mockUser, user)
+
+	delete(session.Values, middleware.SessionUserKey)
+	_, err = authService.GetUser(session)
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, services.ErrorIsNotLoggedIn))
+}
+
+func TestFrontendAuthDefaultService_Logout(t *testing.T) {
+	authService := services.NewFrontendAuthDefaultService(nil)
+
+	ctx, _, _ := test_helpers.SetupEchoContext(t, http.MethodPost, test_helpers.SetupLogger())
+	session := test_helpers.SetupSession(ctx)
+
+	session.Values[middleware.DefaultAuthKey] = true
+	session.Values[middleware.SessionUserKey] = 1
+
+	err := authService.Logout(ctx, session)
+	assert.NoError(t, err)
+	assert.Nil(t, session.Values[middleware.DefaultAuthKey])
+	assert.Nil(t, session.Values[middleware.SessionUserKey])
+}

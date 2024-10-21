@@ -51,8 +51,9 @@ const (
 	InertiaVue    FrontendType = "inertia+vue"
 	InertiaSvelte FrontendType = "inertia+svelte"
 
-	Svelte5 ExtraOption = "svelte5"
-	SQLC    ExtraOption = "sqlc"
+	Svelte5      ExtraOption = "svelte5"
+	SQLC         ExtraOption = "sqlc"
+	FrontendAuth ExtraOption = "fontend-auth"
 )
 
 var (
@@ -107,6 +108,8 @@ func parseExtra(extra string) (ExtraOption, error) {
 		return Svelte5, nil
 	case "sqlc":
 		return SQLC, nil
+	case "frontend-auth":
+		return FrontendAuth, nil
 	default:
 		return "", ErrInvalidExtra
 	}
