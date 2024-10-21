@@ -28,6 +28,12 @@ func WriteTemplateToFile(prj *project.Project, path string, tmplString string, d
 		return err
 	}
 
+	//fully empty the file
+	err = file.Truncate(0)
+	if err != nil {
+		return err
+	}
+
 	err = tmpl.Execute(file, data)
 	if err != nil {
 		return err
