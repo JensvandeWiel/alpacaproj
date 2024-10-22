@@ -3,28 +3,29 @@ package test_helpers
 import (
 	"{{.packageName}}/{{.modelModule}}"
 	"github.com/stretchr/testify/mock"
+	"context"
 )
 
 type MockUsersStore struct {
 	mock.Mock
 }
 
-func (m *MockUsersStore) GetUserById(id int32) (*{{.modelModule}}.User, error) {
+func (m *MockUsersStore) GetUserById(ctx context.Context, id int32) (*{{.modelModule}}.User, error) {
 	args := m.Called(id)
 	return args.Get(0).(*{{.modelModule}}.User), args.Error(1)
 }
 
-func (m *MockUsersStore) GetUserByEmail(email string) (*{{.modelModule}}.User, error) {
+func (m *MockUsersStore) GetUserByEmail(ctx context.Context, email string) (*{{.modelModule}}.User, error) {
 	args := m.Called(email)
 	return args.Get(0).(*{{.modelModule}}.User), args.Error(1)
 }
 
-func (m *MockUsersStore) CreateUser(user *{{.modelModule}}.User) (int64, error) {
+func (m *MockUsersStore) CreateUser(ctx context.Context, user *{{.modelModule}}.User) (int64, error) {
 	args := m.Called(user)
 	return args.Get(0).(int64), args.Error(1)
 }
 
-func (m *MockUsersStore) DeleteUser(id int32) error {
+func (m *MockUsersStore) DeleteUser(ctx context.Context, id int32) error {
 	args := m.Called(id)
 	return args.Error(0)
 }

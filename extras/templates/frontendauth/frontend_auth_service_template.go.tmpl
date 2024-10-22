@@ -9,10 +9,7 @@ import (
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo/v4"
 	"golang.org/x/crypto/bcrypt"
-)
-
-const (
-	DefaultAuthKey = "is_logged_in"
+	"context"
 )
 
 var (
@@ -27,7 +24,7 @@ type FrontendAuthService interface {
 	// IsLoggedIn checks if a user is logged in
 	IsLoggedIn(session *sessions.Session) bool
 	// GetUser gets the user from the session
-	GetUser(session *sessions.Session) (*{{.modelModule}}.User, error)
+	GetUser(ctx context.Context, session *sessions.Session) (*{{.modelModule}}.User, error)
 	// Logout logs out a user
 	Logout(ctx echo.Context, session *sessions.Session) error
 }
@@ -60,7 +57,7 @@ func (l *FrontendAuthDefaultService) loginSession(ctx echo.Context, user *{{.mod
 }
 
 func (l *FrontendAuthDefaultService) Login(ctx echo.Context, request requests.LoginRequest) (*{{.modelModule}}.User, error) {
-	user, err := l.uStore.GetUserByEmail(request.Email)
+	user, err := l.uStore.GetUserByEmail(ctx.Request().Context(), request.Email)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +78,7 @@ func (l *FrontendAuthDefaultService) Login(ctx echo.Context, request requests.Lo
 	return user, nil
 }
 
-func (l *FrontendAuthDefaultService) GetUser(session *sessions.Session) (*{{.modelModule}}.User, error) {
+func (l *FrontendAuthDefaultService) GetUser(ctx context.Context, session *sessions.Session) (*{{.modelModule}}.User, error) {
 	userID, ok := session.Values[middleware.SessionUserKey]
 	if !ok {
 		return nil, ErrorIsNotLoggedIn
@@ -92,7 +89,7 @@ func (l *FrontendAuthDefaultService) GetUser(session *sessions.Session) (*{{.mod
 		return nil, ErrorUserIdNotInt32
 	}
 
-	return l.uStore.GetUserById(idAsInt)
+	return l.uStore.GetUserById(ctx, idAsInt)
 }
 
 func (l *FrontendAuthDefaultService) Logout(ctx echo.Context, session *sessions.Session) error {

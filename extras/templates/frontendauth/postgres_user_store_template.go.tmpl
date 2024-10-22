@@ -16,10 +16,10 @@ var (
 )
 
 type UserStore interface {
-	GetUserById(id int32) (*models.User, error)
-	GetUserByEmail(email string) (*models.User, error)
-	CreateUser(user *models.User) (int64, error)
-	DeleteUser(id int32) error
+	GetUserById(ctx context.Context, id int32) (*models.User, error)
+	GetUserByEmail(ctx context.Context, email string) (*models.User, error)
+	CreateUser(ctx context.Context, user *models.User) (int64, error)
+	DeleteUser(ctx context.Context, id int32) error
 }
 
 type DatabaseUserStore struct {
@@ -32,9 +32,9 @@ func NewDatabaseUserStore(db *sqlx.DB) UserStore {
 	}
 }
 
-func (s *DatabaseUserStore) GetUserById(id int32) (*models.User, error) {
+func (s *DatabaseUserStore) GetUserById(ctx context.Context, id int32) (*models.User, error) {
 	user := &models.User{}
-	err := s.db.Get(user, "SELECT * FROM users WHERE id = $1", id)
+	err := s.db.GetContext(ctx, user, "SELECT * FROM users WHERE id = $1", id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrorUserNotFound
@@ -44,12 +44,12 @@ func (s *DatabaseUserStore) GetUserById(id int32) (*models.User, error) {
 	return user, nil
 }
 
-func (s *DatabaseUserStore) GetUserByEmail(email string) (*models.User, error) {
+func (s *DatabaseUserStore) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
 	if email == "" {
 		return nil, ErrorInvalidUser
 	}
 	user := &models.User{}
-	err := s.db.Get(user, "SELECT * FROM users WHERE email = $1", email)
+	err := s.db.GetContext(ctx, user, "SELECT * FROM users WHERE email = $1", email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrorUserNotFound
@@ -59,7 +59,7 @@ func (s *DatabaseUserStore) GetUserByEmail(email string) (*models.User, error) {
 	return user, nil
 }
 
-func (s *DatabaseUserStore) CreateUser(user *models.User) (int64, error) {
+func (s *DatabaseUserStore) CreateUser(ctx context.Context, user *models.User) (int64, error) {
 	if user == nil {
 		return 0, ErrorInvalidUser
 	}
@@ -69,7 +69,7 @@ func (s *DatabaseUserStore) CreateUser(user *models.User) (int64, error) {
 
 	query := "INSERT INTO users (email, password, name) VALUES ($1, $2, $3) RETURNING id"
 	var id int64
-	err := s.db.QueryRowContext(context.Background(), query, user.Email, user.Password, user.Name).Scan(&id)
+	err := s.db.QueryRowContext(ctx, query, user.Email, user.Password, user.Name).Scan(&id)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -82,8 +82,8 @@ func (s *DatabaseUserStore) CreateUser(user *models.User) (int64, error) {
 	return id, nil
 }
 
-func (s *DatabaseUserStore) DeleteUser(id int32) error {
-	res, err := s.db.Exec("DELETE FROM users WHERE id = $1", id)
+func (s *DatabaseUserStore) DeleteUser(ctx context.Context, id int32) error {
+	res, err := s.db.ExecContext(ctx, "DELETE FROM users WHERE id = $1", id)
 	if err != nil {
 		return err
 	}

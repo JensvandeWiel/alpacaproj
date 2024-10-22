@@ -2,6 +2,7 @@ package stores
 
 import (
 	"{{.packageName}}/models"
+	"context"
 	"database/sql"
 	"errors"
 	"github.com/jmoiron/sqlx"
@@ -12,7 +13,7 @@ var (
 )
 
 type {{.camelNameNoSuffix}}Store interface {
-	Get{{.camelNameNoSuffix}}ById(id int) (*models.{{.camelNameNoSuffix}}, error)
+	Get{{.camelNameNoSuffix}}ById(ctx context.Context, id int) (*models.{{.camelNameNoSuffix}}, error)
 }
 
 type Database{{.camelNameNoSuffix}}Store struct {
@@ -25,9 +26,9 @@ func NewDatabase{{.camelNameNoSuffix}}Store(db *sqlx.DB) {{.camelNameNoSuffix}}S
 	}
 }
 
-func (s *Database{{.camelNameNoSuffix}}Store) Get{{.camelNameNoSuffix}}ById(id int) (*models.{{.camelNameNoSuffix}}, error) {
+func (s *Database{{.camelNameNoSuffix}}Store) Get{{.camelNameNoSuffix}}ById(ctx context.Context, id int) (*models.{{.camelNameNoSuffix}}, error) {
 	{{.lowName}} := &models.{{.camelNameNoSuffix}}{}
-	err := s.db.Get({{.lowName}}, "SELECT * FROM {{.pluralLowName}} WHERE id = $1", id)
+	err := s.db.GetContext(ctx, {{.lowName}}, "SELECT * FROM {{.pluralLowName}} WHERE id = $1", id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, Error{{.camelNameNoSuffix}}NotFound

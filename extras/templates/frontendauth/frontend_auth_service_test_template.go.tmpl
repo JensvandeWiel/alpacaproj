@@ -70,12 +70,12 @@ func TestFrontendAuthDefaultService_GetUser(t *testing.T) {
 	session := test_helpers.SetupSession(ctx)
 
 	session.Values[middleware.SessionUserKey] = mockUser.ID
-	user, err := authService.GetUser(session)
+	user, err := authService.GetUser(ctx.Request().Context(), session)
 	assert.NoError(t, err)
 	assert.Equal(t, mockUser, user)
 
 	delete(session.Values, middleware.SessionUserKey)
-	_, err = authService.GetUser(session)
+	_, err = authService.GetUser(ctx.Request().Context(), session)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, services.ErrorIsNotLoggedIn))
 }

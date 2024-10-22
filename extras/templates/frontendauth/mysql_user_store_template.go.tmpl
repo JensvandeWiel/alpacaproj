@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
+	"context"
 )
 
 var (
@@ -15,10 +16,10 @@ var (
 )
 
 type UserStore interface {
-	GetUserById(id int32) (*models.User, error)
-	GetUserByEmail(email string) (*models.User, error)
-	CreateUser(user *models.User) (int64, error)
-	DeleteUser(id int32) error
+	GetUserById(ctx context.Context, id int32) (*models.User, error)
+	GetUserByEmail(ctx context.Context, email string) (*models.User, error)
+	CreateUser(ctx context.Context, user *models.User) (int64, error)
+	DeleteUser(ctx context.Context, id int32) error
 }
 
 type DatabaseUserStore struct {
@@ -31,9 +32,9 @@ func NewDatabaseUserStore(db *sqlx.DB) UserStore {
 	}
 }
 
-func (s *DatabaseUserStore) GetUserById(id int32) (*models.User, error) {
+func (s *DatabaseUserStore) GetUserById(ctx context.Context, id int32) (*models.User, error) {
 	user := &models.User{}
-	err := s.db.Get(user, "SELECT * FROM users WHERE id = ?", id)
+	err := s.db.GetContext(ctx, user, "SELECT * FROM users WHERE id = ?", id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrorUserNotFound
@@ -43,12 +44,12 @@ func (s *DatabaseUserStore) GetUserById(id int32) (*models.User, error) {
 	return user, nil
 }
 
-func (s *DatabaseUserStore) GetUserByEmail(email string) (*models.User, error) {
+func (s *DatabaseUserStore) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
 	if email == "" {
 		return nil, ErrorInvalidUser
 	}
 	user := &models.User{}
-	err := s.db.Get(user, "SELECT * FROM users WHERE email = ?", email)
+	err := s.db.GetContext(ctx, user, "SELECT * FROM users WHERE email = ?", email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrorUserNotFound
@@ -58,7 +59,7 @@ func (s *DatabaseUserStore) GetUserByEmail(email string) (*models.User, error) {
 	return user, nil
 }
 
-func (s *DatabaseUserStore) CreateUser(user *models.User) (int64, error) {
+func (s *DatabaseUserStore) CreateUser(ctx context.Context, user *models.User) (int64, error) {
 	if user == nil {
 		return 0, ErrorInvalidUser
 	}
@@ -66,7 +67,7 @@ func (s *DatabaseUserStore) CreateUser(user *models.User) (int64, error) {
 		return 0, ErrorInvalidUser
 	}
 
-	res, err := s.db.NamedExec("INSERT INTO users (email, password, name) VALUES (:email, :password, :name)", &user)
+	res, err := s.db.NamedExecContext(ctx, "INSERT INTO users (email, password, name) VALUES (:email, :password, :name)", &user)
 	if err != nil {
 		var mErr *mysql.MySQLError
 		if errors.As(err, &mErr) {
@@ -84,8 +85,8 @@ func (s *DatabaseUserStore) CreateUser(user *models.User) (int64, error) {
 	return id, nil
 }
 
-func (s *DatabaseUserStore) DeleteUser(id int32) error {
-	res, err := s.db.Exec("DELETE FROM users WHERE id = ?", id)
+func (s *DatabaseUserStore) DeleteUser(ctx context.Context, id int32) error {
+	res, err := s.db.ExecContext(ctx, "DELETE FROM users WHERE id = ?", id)
 	if err != nil {
 		return err
 	}
