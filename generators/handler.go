@@ -6,7 +6,6 @@ import (
 	"github.com/JensvandeWiel/alpacaproj/helpers"
 	"github.com/JensvandeWiel/alpacaproj/project"
 	"github.com/iancoleman/strcase"
-	"os"
 	"path"
 	"strings"
 )
@@ -38,16 +37,7 @@ var ErrHandlerExists = errors.New("handler already exists")
 
 func (g *HandlerGenerator) Generate() error {
 	g.prj.Logger.Info("Generating handler: " + g.camelName)
-	fileName := path.Join(g.prj.Path, "handlers", g.snakeName+".go")
-
-	err := helpers.CreateDirectories(g.prj.Path, []string{"handlers"}, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	if _, err := os.Stat(fileName); !os.IsNotExist(err) {
-		return ErrHandlerExists
-	}
+	fileName := path.Join("handlers", g.snakeName+".go")
 
 	data := map[string]interface{}{
 		"handlerName": g.camelName,
@@ -55,7 +45,7 @@ func (g *HandlerGenerator) Generate() error {
 		"packageName": g.prj.PackageName,
 	}
 
-	err = helpers.WriteTemplateToFile(g.prj, fileName, handlerTemplate, data)
+	err := helpers.WriteTemplateToFile(g.prj, fileName, handlerTemplate, data)
 	if err != nil {
 		return err
 	}

@@ -6,7 +6,6 @@ import (
 	"github.com/JensvandeWiel/alpacaproj/helpers"
 	"github.com/JensvandeWiel/alpacaproj/project"
 	"github.com/iancoleman/strcase"
-	"os"
 	"strings"
 )
 
@@ -37,22 +36,13 @@ var ErrRequestExists = errors.New("request already exists")
 
 func (g *RequestGenerator) Generate() error {
 	g.prj.Logger.Info("Generating request: " + g.camelName)
-	fileName := g.prj.Path + "/requests/" + g.snakeName + ".go"
-
-	err := helpers.CreateDirectories(g.prj.Path, []string{"requests"}, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	if _, err := os.Stat(fileName); !os.IsNotExist(err) {
-		return ErrRequestExists
-	}
+	fileName := "requests/" + g.snakeName + ".go"
 
 	data := map[string]interface{}{
 		"camelName": g.camelName,
 	}
 
-	err = helpers.WriteTemplateToFile(g.prj, fileName, requestTemplate, data)
+	err := helpers.WriteTemplateToFile(g.prj, fileName, requestTemplate, data)
 	if err != nil {
 		return err
 	}

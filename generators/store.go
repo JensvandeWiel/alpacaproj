@@ -6,7 +6,6 @@ import (
 	"github.com/JensvandeWiel/alpacaproj/helpers"
 	"github.com/JensvandeWiel/alpacaproj/project"
 	"github.com/iancoleman/strcase"
-	"os"
 	"strings"
 )
 
@@ -37,22 +36,13 @@ var ErrStoreExists = errors.New("store already exists")
 
 func (g *StoreGenerator) Generate() error {
 	g.prj.Logger.Info("Generating store: " + g.camelName)
-	fileName := g.prj.Path + "/stores/" + g.snakeName + ".go"
-
-	err := helpers.CreateDirectories(g.prj.Path, []string{"stores"}, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	if _, err := os.Stat(fileName); !os.IsNotExist(err) {
-		return ErrStoreExists
-	}
+	fileName := "stores/" + g.snakeName + ".go"
 
 	data := map[string]interface{}{
 		"camelName": g.camelName,
 	}
 
-	err = helpers.WriteTemplateToFile(g.prj, fileName, storeTemplate, data)
+	err := helpers.WriteTemplateToFile(g.prj, fileName, storeTemplate, data)
 	if err != nil {
 		return err
 	}

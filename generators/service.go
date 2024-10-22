@@ -6,7 +6,6 @@ import (
 	"github.com/JensvandeWiel/alpacaproj/helpers"
 	"github.com/JensvandeWiel/alpacaproj/project"
 	"github.com/iancoleman/strcase"
-	"os"
 	"strings"
 )
 
@@ -37,22 +36,13 @@ var ErrServiceExists = errors.New("service already exists")
 
 func (g *ServiceGenerator) Generate() error {
 	g.prj.Logger.Info("Generating service: " + g.camelName)
-	fileName := g.prj.Path + "/services/" + g.snakeName + ".go"
-
-	err := helpers.CreateDirectories(g.prj.Path, []string{"services"}, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	if _, err := os.Stat(fileName); !os.IsNotExist(err) {
-		return ErrServiceExists
-	}
+	fileName := "services/" + g.snakeName + ".go"
 
 	data := map[string]interface{}{
 		"camelName": strings.TrimRight(g.camelName, "Service"),
 	}
 
-	err = helpers.WriteTemplateToFile(g.prj, fileName, serviceTemplate, data)
+	err := helpers.WriteTemplateToFile(g.prj, fileName, serviceTemplate, data)
 	if err != nil {
 		return err
 	}
