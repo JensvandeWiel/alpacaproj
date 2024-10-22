@@ -13,7 +13,7 @@ var (
 )
 
 type {{.camelNameNoSuffix}}Store interface {
-	Get{{.camelNameNoSuffix}}ById(id int32) (*repository.{{.camelNameNoSuffix}}, error)
+	Get{{.camelNameNoSuffix}}ById(ctx context.Context, id int32) (*repository.{{.camelNameNoSuffix}}, error)
 }
 
 type Database{{.camelNameNoSuffix}}Store struct {
@@ -26,8 +26,8 @@ func NewDatabase{{.camelNameNoSuffix}}Store(db *sqlx.DB) {{.camelNameNoSuffix}}S
 	}
 }
 
-func (d *Database{{.camelNameNoSuffix}}Store) Get{{.camelNameNoSuffix}}ById(id int32) (*repository.{{.camelNameNoSuffix}}, error) {
-	{{.lowName}}, err := d.queries.Get{{.camelNameNoSuffix}}(context.Background(), id)
+func (d *Database{{.camelNameNoSuffix}}Store) Get{{.camelNameNoSuffix}}ById(ctx context.Context, id int32) (*repository.{{.camelNameNoSuffix}}, error) {
+	{{.lowName}}, err := d.queries.Get{{.camelNameNoSuffix}}(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, Error{{.camelNameNoSuffix}}NotFound

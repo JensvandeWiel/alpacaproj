@@ -14,10 +14,10 @@ var (
 )
 
 type UserStore interface {
-	GetUserById(id int32) (*repository.User, error)
-	GetUserByEmail(email string) (*repository.User, error)
-	CreateUser(user *repository.User) (int64, error)
-	DeleteUser(id int32) error
+	GetUserById(ctx context.Context, id int32) (*repository.User, error)
+	GetUserByEmail(ctx context.Context, email string) (*repository.User, error)
+	CreateUser(ctx context.Context, user *repository.User) (int64, error)
+	DeleteUser(ctx context.Context, id int32) error
 }
 
 type DatabaseUserStore struct {
@@ -30,8 +30,8 @@ func NewDatabaseUserStore(db *sqlx.DB) UserStore {
 	}
 }
 
-func (d *DatabaseUserStore) GetUserById(id int32) (*repository.User, error) {
-	user, err := d.queries.GetUser(context.Background(), id)
+func (d *DatabaseUserStore) GetUserById(ctx context.Context, id int32) (*repository.User, error) {
+	user, err := d.queries.GetUser(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrorUserNotFound
@@ -42,8 +42,8 @@ func (d *DatabaseUserStore) GetUserById(id int32) (*repository.User, error) {
 	return user, nil
 }
 
-func (d *DatabaseUserStore) GetUserByEmail(email string) (*repository.User, error) {
-	user, err := d.queries.GetUserByEmail(context.Background(), email)
+func (d *DatabaseUserStore) GetUserByEmail(ctx context.Context, email string) (*repository.User, error) {
+	user, err := d.queries.GetUserByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrorUserNotFound
@@ -54,22 +54,22 @@ func (d *DatabaseUserStore) GetUserByEmail(email string) (*repository.User, erro
 	return user, nil
 }
 
-func (d *DatabaseUserStore) CreateUser(user *repository.User) (int64, error) {
+func (d *DatabaseUserStore) CreateUser(ctx context.Context, user *repository.User) (int64, error) {
 	if user == nil {
 		return 0, ErrorInvalidUser
 	}
 	if user.Email == "" || user.Name == "" || user.Password == "" {
 		return 0, ErrorInvalidUser
 	}
-	return d.queries.CreateUser(context.Background(), repository.CreateUserParams{
+	return d.queries.CreateUser(ctx, repository.CreateUserParams{
 		Email:    user.Email,
 		Name:     user.Name,
 		Password: user.Password,
 	})
 }
 
-func (d *DatabaseUserStore) DeleteUser(id int32) error {
-	res, err := d.queries.DeleteUser(context.Background(), id)
+func (d *DatabaseUserStore) DeleteUser(ctx context.Context, id int32) error {
+	res, err := d.queries.DeleteUser(ctx, id)
 	if err != nil {
 		return err
 	}
