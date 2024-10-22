@@ -13,3 +13,19 @@ const SessionUserKey = "user_id"
 func GetSession(c echo.Context) (*sessions.Session, error) {
 	return session.Get(DefaultSessionName, c)
 }
+
+// ProtectFrontendRoute ensures that the user is authenticated before proceeding (don't use for api endpoints)
+func ProtectFrontendRoute(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		sess, err := session.Get(DefaultSessionName, c)
+		if err != nil {
+			return err
+		}
+
+		if sess.Values[DefaultAuthKey] == nil || sess.Values[DefaultAuthKey].(bool) != true {
+			return c.Redirect(303, "/login")
+		}
+
+		return next(c)
+	}
+}
