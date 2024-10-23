@@ -74,6 +74,12 @@ func (f *FlashProvider) GetErrors(ctx context.Context) (gonertia.ValidationError
 		f.logger.Debug("Got error", "key", key, "value", value)
 	}
 
+	// Clear the errors
+	err = f.client.Do(context.Background(), f.client.B().Del().Key(FlashErrKeyPrefix+sessionID).Build()).Error()
+	if err != nil {
+		return gonertia.ValidationErrors{}, err
+	}
+
 	return errs, nil
 }
 
