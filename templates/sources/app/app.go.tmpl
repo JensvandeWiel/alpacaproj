@@ -25,7 +25,7 @@ func RegisterSwagger(app *App) error {
 }
 
 func init() {
-	Modifiers = append(Modifiers, RegisterSwagger{{if .hasFrontend}}, RegisterFrontend {{end}})
+	Modifiers = append(Modifiers, RegisterSwagger{{if and .hasFrontend (not (eq .frontendType "templ"))}}, RegisterFrontend {{end}})
 }
 
 type App struct {

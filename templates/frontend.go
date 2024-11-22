@@ -32,16 +32,28 @@ func BuildFrontend(prj *project.Project) error {
 		if err != nil {
 			return err
 		}
+	case project.Templ:
+		err := buildTemplFrontend(prj)
+		if err != nil {
+			return err
+		}
+
+		err = helpers.RunCommand(prj.Path, true, "templ", "generate")
+		if err != nil {
+			return err
+		}
 	}
 
-	err := buildFrontend_Frontend(prj)
-	if err != nil {
-		return err
-	}
+	if prj.FrontendType != project.Templ {
+		err := buildFrontend_Frontend(prj)
+		if err != nil {
+			return err
+		}
 
-	err = helpers.InstallNPMPackages(prj, "frontend")
-	if err != nil {
-		return err
+		err = helpers.InstallNPMPackages(prj, "frontend")
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -70,4 +82,35 @@ func buildFrontend_Frontend(prj *project.Project) error {
 	defer file.Close()
 
 	return tmpl.Execute(file, nil)
+}
+
+//go:embed sources/frontend/templ/templates/hello.templ
+var hello_templ_template string
+
+//go:embed sources/frontend/templ/handlers/templ_handler.go.tmpl
+var templ_handler_template string
+
+func buildTemplFrontend(prj *project.Project) error {
+	prj.Logger.Debug("Generating templ frontend")
+
+	err := helpers.CreateDirectories(prj.Path, []string{"templates", "handlers"}, 0755)
+	if err != nil {
+		return err
+	}
+
+	data := map[string]interface{}{
+		"packageName": prj.PackageName,
+	}
+
+	err = helpers.WriteTemplateToFile(prj, "templates/hello.templ", hello_templ_template, data)
+	if err != nil {
+		return err
+	}
+
+	err = helpers.WriteTemplateToFile(prj, "handlers/templ_handler.go", templ_handler_template, data)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

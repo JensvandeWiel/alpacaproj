@@ -21,7 +21,8 @@ tmp_dir = "tmp"
   poll = false
   poll_interval = 0
   post_cmd = []
-  pre_cmd = [
+  pre_cmd = [{{ if eq .frontendType "templ" }}
+    "templ generate",{{ end }}
     "task generate_swagger"
   ]
   rerun = false

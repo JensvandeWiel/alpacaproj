@@ -1,0 +1,29 @@
+package handlers
+
+import (
+	"github.com/labstack/echo/v4"
+	"{{.packageName}}/app"
+	"{{.packageName}}/templates"
+)
+
+func init() {
+	Handlers = append(Handlers, &TemplHandler{})
+}
+
+type TemplHandler struct {
+	*app.App
+}
+
+func (h *TemplHandler) Register(app *app.App) error {
+	h.App = app
+	h.Echo.GET("", h.IndexHandle)
+	return nil
+}
+
+func (h *TemplHandler) GetHandlerName() string {
+	return "templ_handler"
+}
+func (h *TemplHandler) IndexHandle(ctx echo.Context) error {
+	component := templates.Hello("Bob")
+	return component.Render(ctx.Request().Context(), ctx.Response().Writer)
+}

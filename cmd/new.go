@@ -30,7 +30,7 @@ func init() {
 	rootCmd.AddCommand(newCmd)
 
 	newCmd.Flags().StringVarP(&database, "database", "d", "mysql", "Database to use possible values: mysql, postgres")
-	newCmd.Flags().StringVarP(&frontend, "frontend", "f", "none", "frontend type to use, type 'none' to skip frontend, possible values: none, inertia+react, inertia+vue, inertia+svelte")
+	newCmd.Flags().StringVarP(&frontend, "frontend", "f", "none", "frontend type to use, type 'none' to skip frontend, possible values: none, inertia+react, inertia+vue, inertia+svelte, templ")
 	newCmd.Flags().StringVarP(&packageName, "package", "p", "", "package name")
 	newCmd.Flags().StringSliceVarP(&extrasVal, "extras", "e", []string{}, "extra features to add to the project possible values: svelte5, sqlc")
 }
@@ -111,11 +111,6 @@ func generateProject(prj *project.Project) error {
 		return err
 	}
 
-	err = templates.BuildFrontend(prj)
-	if err != nil {
-		return err
-	}
-
 	err = templates.BuildHandlers(prj)
 	if err != nil {
 		return err
@@ -137,6 +132,11 @@ func generateProject(prj *project.Project) error {
 	}
 
 	err = templates.BuildRootFiles(prj)
+	if err != nil {
+		return err
+	}
+
+	err = templates.BuildFrontend(prj)
 	if err != nil {
 		return err
 	}
@@ -181,6 +181,12 @@ func generateProject(prj *project.Project) error {
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
 	err = command.Run()
+	if err != nil {
+		return err
+	}
+
+	prj.Logger.Info("Running go mod tidy")
+	err = helpers.RunGoTidy(prj)
 	if err != nil {
 		return err
 	}

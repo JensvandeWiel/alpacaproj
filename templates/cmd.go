@@ -94,10 +94,11 @@ func buildCMDServer_Main(prj *project.Project) error {
 	prj.Logger.Debug("Generating cmd/server/main.go")
 
 	data := map[string]interface{}{
-		"packageName": prj.PackageName,
-		"projectName": prj.Name,
-		"hasFrontend": prj.HasFrontend,
-		"database":    prj.Database,
+		"packageName":  prj.PackageName,
+		"projectName":  prj.Name,
+		"hasFrontend":  prj.HasFrontend,
+		"frontendType": prj.FrontendType,
+		"database":     prj.Database,
 	}
 
 	err := helpers.WriteTemplateToFile(prj, "cmd/server/main.go", serverMainTemplate, data)

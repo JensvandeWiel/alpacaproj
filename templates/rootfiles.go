@@ -12,7 +12,11 @@ var airConfigTemplate string
 func buildAirConfig(prj *project.Project) error {
 	prj.Logger.Debug("Generating .air.toml")
 
-	err := helpers.WriteTemplateToFile(prj, ".air.toml", airConfigTemplate, nil)
+	data := map[string]interface{}{
+		"frontendType": prj.FrontendType,
+	}
+
+	err := helpers.WriteTemplateToFile(prj, ".air.toml", airConfigTemplate, data)
 	if err != nil {
 		return err
 	}
@@ -64,12 +68,6 @@ func buildGoMod(prj *project.Project) error {
 	}
 
 	err := helpers.WriteTemplateToFile(prj, "go.mod", goModTemplate, data)
-	if err != nil {
-		return err
-	}
-
-	prj.Logger.Debug("Running go mod tidy")
-	err = helpers.RunCommand(prj.Path, true, "go", "mod", "tidy", "-v")
 	if err != nil {
 		return err
 	}
