@@ -21,7 +21,7 @@ import (
 
 	_ "{{.packageName}}/docs"
 
-	{{if .hasFrontend}}_ "{{.packageName}}/frontend"{{end}}
+	{{if and .hasFrontend (not (eq .frontendType "templ"))}}_ "{{.packageName}}/frontend"{{end}}
 )
 
 var (

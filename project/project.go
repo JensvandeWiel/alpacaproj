@@ -50,6 +50,7 @@ const (
 	InertiaReact  FrontendType = "inertia+react"
 	InertiaVue    FrontendType = "inertia+vue"
 	InertiaSvelte FrontendType = "inertia+svelte"
+	Templ         FrontendType = "templ"
 
 	Svelte5      ExtraOption = "svelte5"
 	SQLC         ExtraOption = "sqlc"
@@ -95,6 +96,8 @@ func parseFrontend(frontend string) (FrontendType, error) {
 		return InertiaVue, nil
 	case "inertia+svelte":
 		return InertiaSvelte, nil
+	case "templ":
+		return Templ, nil
 	default:
 		return None, ErrorInvalidFrontend
 	}

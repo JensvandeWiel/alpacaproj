@@ -14,8 +14,9 @@ func buildApp_App(prj *project.Project) error {
 	prj.Logger.Debug("Generating app/app.go")
 
 	data := map[string]interface{}{
-		"hasFrontend": prj.HasFrontend,
-		"isInertia":   prj.FrontendType.IsInertia(),
+		"hasFrontend":  prj.HasFrontend,
+		"frontendType": prj.FrontendType,
+		"isInertia":    prj.FrontendType.IsInertia(),
 	}
 
 	err := helpers.WriteTemplateToFile(prj, "app/app.go", appTemplate, data)
