@@ -52,18 +52,6 @@ func BuildFrontendAuth(prj *project.Project) error {
 		}
 	}
 
-	prj.Logger.Debug("Installing swaggo")
-	err = helpers.RunCommand(prj.Path, false, "go", "install", "github.com/swaggo/swag/cmd/swag@latest")
-	if err != nil {
-		return err
-	}
-	prj.Logger.Debug("Installed swaggo")
-	prj.Logger.Debug("Running swag init")
-	err = helpers.RunCommand(prj.Path, false, "swag", "init", "-d", "cmd/server/")
-	if err != nil {
-		return err
-	}
-	prj.Logger.Debug("Ran swag init")
 	err = helpers.RunGoTidy(prj)
 	if err != nil {
 		return err
