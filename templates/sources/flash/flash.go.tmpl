@@ -22,8 +22,8 @@ type FlashProvider struct {
 }
 
 // NewFlashProvider creates a new flash provider, it expects that the context contains a sessionID
-func NewFlashProvider(client valkey.Client) *FlashProvider {
-	return &FlashProvider{client: client}
+func NewFlashProvider(client valkey.Client, logger *slog.Logger) *FlashProvider {
+	return &FlashProvider{client: client, logger: logger}
 }
 
 // FlashErrors adds the errors to the flash provider
