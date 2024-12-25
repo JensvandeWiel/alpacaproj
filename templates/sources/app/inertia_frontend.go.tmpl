@@ -44,7 +44,7 @@ func RegisterFrontend(a *App) error {
 		frontend.RootTemplate,
 		gonertia.WithVersion(createHash()),
 		gonertia.WithLogger(&inertiaLogger{a.Logger.With(slog.String("module", "inertia"))}),
-		gonertia.WithFlashProvider(flash.NewFlashProvider(a.Valkey)),
+		gonertia.WithFlashProvider(flash.NewFlashProvider(a.Valkey, a.Logger)),
 	)
 
 	if err != nil {
