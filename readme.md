@@ -29,6 +29,7 @@ Make sure to have these programs installed
 - [Bun](https://bun.sh/)
 - [Task](https://taskfile.dev/)
 - [Sqlc](https://sqlc.dev/)
+- Docker
 ## Todo
 - [ ] Add existing project check
 - [ ] Add the installation of the used programs
