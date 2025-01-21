@@ -33,6 +33,9 @@ tasks:
       - swag init -d cmd/server/
       - swag fmt
   dev:
+    env:
+      ENV: dev
+      CONSOLE_FORMAT: normal
     cmds:
       {{ if .isInertia }}- task: build:frontend{{ end }}
       - docker compose -f docker-compose.yml up -d

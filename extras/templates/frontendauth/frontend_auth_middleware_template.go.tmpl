@@ -29,3 +29,21 @@ func ProtectFrontendRoute(next echo.HandlerFunc) echo.HandlerFunc {
 		return next(c)
 	}
 }
+
+func NotAuthenticated(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+
+		sess, err := session.Get(DefaultSessionName, c)
+		if err != nil {
+			return err
+		}
+
+		// Not authenticated
+		if val, ok := sess.Values[DefaultAuthKey]; !ok || val == false || val == nil {
+			return next(c)
+		}
+
+		// Authenticated
+		return c.Redirect(403, "/")
+	}
+}

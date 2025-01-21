@@ -8,6 +8,7 @@ import (
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	middleware2 "github.com/labstack/echo/v4/middleware"
+	"github.com/phsym/console-slog"
 	slogecho "github.com/samber/slog-echo"
 	"log/slog"
 	"os"
@@ -35,6 +36,7 @@ var (
 	dbPass     string
 	dbName     string
 	ignoreList = []string{"api", "swagger", "deployments/webhook"}
+	skipPaths  = []string{"/src", "/@*", "/node_modules", "/build/", "/@vite", "/@react-refresh"}
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -80,6 +82,7 @@ func init() {
 	rootCmd.PersistentFlags().String("ENV", "dev", "the environment to run in")
 	rootCmd.PersistentFlags().String("CACHE_HOST", "localhost", "the cache host")
 	rootCmd.PersistentFlags().Int("CACHE_PORT", 6379, "the cache port")
+	rootCmd.PersistentFlags().String("CONSOLE_FORMAT", "json", "the format to use for the console logger (json, color)")
 
 	// Bind flags to Viper
 	viper.BindPFlag("LOG_LEVEL", rootCmd.PersistentFlags().Lookup("logLevel"))
@@ -93,6 +96,7 @@ func init() {
 	viper.BindPFlag("ENV", rootCmd.PersistentFlags().Lookup("ENV"))
 	viper.BindPFlag("CACHE_HOST", rootCmd.PersistentFlags().Lookup("CACHE_HOST"))
 	viper.BindPFlag("CACHE_PORT", rootCmd.PersistentFlags().Lookup("CACHE_PORT"))
+	viper.BindPFlag("CONSOLE_FORMAT", rootCmd.PersistentFlags().Lookup("CONSOLE_FORMAT"))
 
 	rootCmd.AddCommand(serveCmd)
 	rootCmd.AddCommand(gooseCmd)
@@ -143,14 +147,19 @@ func parseLogLevel() slog.Level {
 }
 
 func CreateApp(handlers []handlers.Handler, modifiers ...app.Modifier) (*app.App, error) {
-	a := &app.App{}
+	var logger *slog.Logger
 
 	// Create the logger
 	ll := parseLogLevel()
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: ll,
-	}))
-	a.Logger = logger
+	if viper.GetString("CONSOLE_FORMAT") == "json" {
+    	logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+    		Level: ll,
+    	}))
+    } else {
+    	logger = slog.New(console.NewHandler(os.Stdout, &console.HandlerOptions{
+    		Level: ll,
+    	}))
+    }
 
 	// Connect to the database
 	logger.Info("Connecting to the database", slog.String("host", dbHost), slog.Int("port", dbPort), slog.String("user", dbUser), slog.String("name", dbName))
@@ -159,7 +168,6 @@ func CreateApp(handlers []handlers.Handler, modifiers ...app.Modifier) (*app.App
 		logger.Error("Failed to connect to the database", slog.Any("err", err))
 		return nil, err
 	}
-	a.DB = db
 
 	// Connect to the cache
 	logger.Info("Connecting to valkey", slog.String("host", viper.GetString("CACHE_HOST")), slog.Int("port", viper.GetInt("CACHE_PORT")))
@@ -168,7 +176,6 @@ func CreateApp(handlers []handlers.Handler, modifiers ...app.Modifier) (*app.App
 		logger.Error("Failed to connect to valkey", slog.Any("err", err))
 		return nil, err
 	}
-	a.Valkey = vkClient
 
 	// Create the session store
 	store, err := valkeystore.NewValkeyStore(vkClient)
@@ -176,7 +183,6 @@ func CreateApp(handlers []handlers.Handler, modifiers ...app.Modifier) (*app.App
 		logger.Error("Failed to create valkey store", slog.Any("err", err))
 		return nil, err
 	}
-	a.SessionStore = store
 
 	// Create the echo instance
 	e := echo.New()
@@ -184,7 +190,7 @@ func CreateApp(handlers []handlers.Handler, modifiers ...app.Modifier) (*app.App
 	e.HidePort = true
 	e.HideBanner = true
 	e.Use(
-		slogecho.New(logger.With(slog.String("module", "echo"))),
+		slogecho.NewWithFilters(logger.With(slog.String("module", "echo")), slogecho.IgnorePathContains(skipPaths...)),
 		middleware.AttachRequestID(logger),
 		session.Middleware(store),
 		middleware.EnsureSession(),
